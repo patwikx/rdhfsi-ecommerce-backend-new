@@ -1,0 +1,469 @@
+'use server';
+
+import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import { revalidatePath } from 'next/cache';
+import { productFormSchema, type ProductFormValues } from '@/lib/validations/product-validation';
+
+type ActionResult<T = unknown> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+};
+
+/**
+ * Get all products with filters
+ */
+export async function getAllProducts(filters?: {
+  categoryId?: string;
+  brandId?: string;
+  isActive?: boolean;
+  search?: string;
+}): Promise<ActionResult<{
+  id: string;
+  sku: string;
+  name: string;
+  slug: string;
+  retailPrice: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  category: { name: string };
+  brand: { name: string } | null;
+  images: { url: string; sortOrder: number }[];
+  _count: { inventories: number };
+}[]>> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    const where: {
+      categoryId?: string;
+      brandId?: string;
+      isActive?: boolean;
+      OR?: Array<{
+        name?: { contains: string; mode: 'insensitive' };
+        sku?: { contains: string; mode: 'insensitive' };
+        barcode?: { contains: string; mode: 'insensitive' };
+      }>;
+    } = {};
+    
+    if (filters?.categoryId) where.categoryId = filters.categoryId;
+    if (filters?.brandId) where.brandId = filters.brandId;
+    if (filters?.isActive !== undefined) where.isActive = filters.isActive;
+    if (filters?.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { sku: { contains: filters.search, mode: 'insensitive' } },
+        { barcode: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const productsData = await prisma.product.findMany({
+      where,
+      include: {
+        category: {
+          select: { name: true },
+        },
+        brand: {
+          select: { name: true },
+        },
+        images: {
+          select: { url: true, sortOrder: true },
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+        _count: {
+          select: { inventories: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Convert Decimal fields to numbers for client components
+    const products = productsData.map(product => ({
+      ...product,
+      retailPrice: Number(product.retailPrice),
+      costPrice: product.costPrice ? Number(product.costPrice) : null,
+      compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+      bulkPrice: product.bulkPrice ? Number(product.bulkPrice) : null,
+      weight: product.weight ? Number(product.weight) : null,
+      averageRating: product.averageRating ? Number(product.averageRating) : null,
+    }));
+
+    return { success: true, data: products };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return { success: false, error: 'Failed to fetch products' };
+  }
+}
+
+/**
+ * Get product by ID
+ */
+export async function getProductById(id: string): Promise<ActionResult<{
+  id: string;
+  sku: string;
+  barcode: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  shortDescription: string | null;
+  categoryId: string;
+  brandId: string | null;
+  model: string | null;
+  baseUom: string;
+  retailPrice: number;
+  costPrice: number | null;
+  compareAtPrice: number | null;
+  moq: number;
+  bulkPrice: number | null;
+  bulkThreshold: number | null;
+  weight: number | null;
+  dimensions: string | null;
+  leadTime: string | null;
+  isActive: boolean;
+  isFeatured: boolean;
+  isPublished: boolean;
+  isTrending: boolean;
+  isOnSale: boolean;
+  isClearance: boolean;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaKeywords: string | null;
+  specifications: unknown;
+  averageRating: number | null;
+  reviewCount: number;
+  legacyProductCode: string | null;
+  lastSyncedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  images: { id: string; url: string; altText: string | null; sortOrder: number; isPrimary: boolean; productId: string; createdAt: Date }[];
+}>> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    const productData = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!productData) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Convert Decimal fields to numbers for client components
+    const product = {
+      ...productData,
+      retailPrice: Number(productData.retailPrice),
+      costPrice: productData.costPrice ? Number(productData.costPrice) : null,
+      compareAtPrice: productData.compareAtPrice ? Number(productData.compareAtPrice) : null,
+      bulkPrice: productData.bulkPrice ? Number(productData.bulkPrice) : null,
+      weight: productData.weight ? Number(productData.weight) : null,
+      averageRating: productData.averageRating ? Number(productData.averageRating) : null,
+    };
+
+    return { success: true, data: product };
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    return { success: false, error: 'Failed to fetch product' };
+  }
+}
+
+/**
+ * Create a new product
+ */
+export async function createProduct(data: ProductFormValues, images: { url: string; sortOrder: number }[]): Promise<ActionResult<{ id: string }>> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    const validatedData = productFormSchema.parse(data);
+
+    // Convert empty strings to null/undefined
+    const cleanedData = {
+      ...validatedData,
+      brandId: validatedData.brandId === '' ? null : validatedData.brandId,
+      description: validatedData.description === '' ? undefined : validatedData.description,
+      shortDescription: validatedData.shortDescription === '' ? undefined : validatedData.shortDescription,
+      model: validatedData.model === '' ? undefined : validatedData.model,
+      dimensions: validatedData.dimensions === '' ? undefined : validatedData.dimensions,
+      leadTime: validatedData.leadTime === '' ? undefined : validatedData.leadTime,
+      metaTitle: validatedData.metaTitle === '' ? undefined : validatedData.metaTitle,
+      metaDescription: validatedData.metaDescription === '' ? undefined : validatedData.metaDescription,
+      metaKeywords: validatedData.metaKeywords === '' ? undefined : validatedData.metaKeywords,
+      specifications: validatedData.specifications === '' ? undefined : validatedData.specifications,
+    };
+
+    // Check if SKU already exists
+    const existingSku = await prisma.product.findUnique({
+      where: { sku: validatedData.sku },
+    });
+
+    if (existingSku) {
+      return { success: false, error: 'SKU already exists' };
+    }
+
+    // Check if barcode already exists
+    const existingBarcode = await prisma.product.findUnique({
+      where: { barcode: validatedData.barcode },
+    });
+
+    if (existingBarcode) {
+      return { success: false, error: 'Barcode already exists' };
+    }
+
+    // Parse specifications from plain text to JSON
+    let specifications = null;
+    if (cleanedData.specifications) {
+      const lines = cleanedData.specifications.split('\n').filter(line => line.trim());
+      const specs: Record<string, string> = {};
+      lines.forEach(line => {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+          specs[key.trim()] = valueParts.join(':').trim();
+        }
+      });
+      specifications = Object.keys(specs).length > 0 ? specs : null;
+    }
+
+    const product = await prisma.product.create({
+      data: {
+        ...cleanedData,
+        specifications: specifications || undefined,
+        images: {
+          create: images.map((img, index) => ({
+            url: img.url,
+            sortOrder: img.sortOrder || index,
+          })),
+        },
+      },
+    });
+
+    revalidatePath('/admin/products');
+    
+    return { success: true, data: { id: product.id } };
+  } catch (error) {
+    console.error('Error creating product:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Failed to create product' };
+  }
+}
+
+/**
+ * Update a product
+ */
+export async function updateProduct(id: string, data: ProductFormValues, images: { url: string; sortOrder: number }[]): Promise<ActionResult<{ id: string }>> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    const validatedData = productFormSchema.parse(data);
+
+    // Convert empty strings to null/undefined
+    const cleanedData = {
+      ...validatedData,
+      brandId: validatedData.brandId === '' ? null : validatedData.brandId,
+      description: validatedData.description === '' ? undefined : validatedData.description,
+      shortDescription: validatedData.shortDescription === '' ? undefined : validatedData.shortDescription,
+      model: validatedData.model === '' ? undefined : validatedData.model,
+      dimensions: validatedData.dimensions === '' ? undefined : validatedData.dimensions,
+      leadTime: validatedData.leadTime === '' ? undefined : validatedData.leadTime,
+      metaTitle: validatedData.metaTitle === '' ? undefined : validatedData.metaTitle,
+      metaDescription: validatedData.metaDescription === '' ? undefined : validatedData.metaDescription,
+      metaKeywords: validatedData.metaKeywords === '' ? undefined : validatedData.metaKeywords,
+      specifications: validatedData.specifications === '' ? undefined : validatedData.specifications,
+    };
+
+    const existingProduct = await prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!existingProduct) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Check if SKU is being changed and if it already exists
+    if (validatedData.sku !== existingProduct.sku) {
+      const existingSku = await prisma.product.findUnique({
+        where: { sku: validatedData.sku },
+      });
+
+      if (existingSku) {
+        return { success: false, error: 'SKU already exists' };
+      }
+    }
+
+    // Check if barcode is being changed and if it already exists
+    if (validatedData.barcode !== existingProduct.barcode) {
+      const existingBarcode = await prisma.product.findUnique({
+        where: { barcode: validatedData.barcode },
+      });
+
+      if (existingBarcode) {
+        return { success: false, error: 'Barcode already exists' };
+      }
+    }
+
+    // Parse specifications from plain text to JSON
+    let specifications = null;
+    if (cleanedData.specifications) {
+      const lines = cleanedData.specifications.split('\n').filter(line => line.trim());
+      const specs: Record<string, string> = {};
+      lines.forEach(line => {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+          specs[key.trim()] = valueParts.join(':').trim();
+        }
+      });
+      specifications = Object.keys(specs).length > 0 ? specs : null;
+    }
+
+    // Delete existing images and create new ones
+    await prisma.productImage.deleteMany({
+      where: { productId: id },
+    });
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        ...cleanedData,
+        specifications: specifications || undefined,
+        images: {
+          create: images.map((img, index) => ({
+            url: img.url,
+            sortOrder: img.sortOrder || index,
+          })),
+        },
+      },
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath(`/admin/products/${id}`);
+    
+    return { success: true, data: { id: product.id } };
+  } catch (error) {
+    console.error('Error updating product:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Failed to update product' };
+  }
+}
+
+/**
+ * Delete a product
+ */
+export async function deleteProduct(id: string): Promise<ActionResult> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Only admins can delete products' };
+  }
+
+  try {
+    // Check if product has inventory
+    const inventoryCount = await prisma.inventory.count({
+      where: { productId: id },
+    });
+
+    if (inventoryCount > 0) {
+      return { success: false, error: 'Cannot delete product with existing inventory' };
+    }
+
+    // Check if product has orders
+    const orderCount = await prisma.orderItem.count({
+      where: { productId: id },
+    });
+
+    if (orderCount > 0) {
+      return { success: false, error: 'Cannot delete product with existing orders' };
+    }
+
+    await prisma.product.delete({
+      where: { id },
+    });
+
+    revalidatePath('/admin/products');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return { success: false, error: 'Failed to delete product' };
+  }
+}
+
+/**
+ * Toggle product active status
+ */
+export async function toggleProductStatus(id: string): Promise<ActionResult> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    await prisma.product.update({
+      where: { id },
+      data: { isActive: !product.isActive },
+    });
+
+    revalidatePath('/admin/products');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error toggling product status:', error);
+    return { success: false, error: 'Failed to toggle product status' };
+  }
+}
