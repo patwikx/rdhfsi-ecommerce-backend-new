@@ -5,6 +5,8 @@ export interface LegacyInventoryItem {
   productCode: string;
   name: string;
   retailPrice: number;
+  wholesalePrice: number;
+  poPrice: number;
   onHandQuantity: number;
   baseUnitCode: string;
   categoryName: string;

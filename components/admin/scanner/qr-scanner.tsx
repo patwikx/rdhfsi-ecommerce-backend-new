@@ -17,6 +17,8 @@ type ProductDetails = {
   name: string;
   description: string | null;
   retailPrice: number;
+  wholesalePrice: number | null;
+  poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
   isActive: boolean;
@@ -224,13 +226,29 @@ export function QRScanner() {
 
           <div className="border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">Pricing</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="border rounded-lg p-4">
-                <p className="text-sm text-muted-foreground mb-1">Retail Price</p>
+                <p className="text-sm text-muted-foreground mb-1">Retail Price (SRP)</p>
                 <p className="text-2xl font-bold">
                   ₱{product.retailPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
+              {product.wholesalePrice && (
+                <div className="border rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground mb-1">Wholesale Price</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    ₱{product.wholesalePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+              {product.poPrice && (
+                <div className="border rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground mb-1">PO Price</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    ₱{product.poPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
               {product.compareAtPrice && (
                 <div className="border rounded-lg p-4">
                   <p className="text-sm text-muted-foreground mb-1">Compare At Price</p>

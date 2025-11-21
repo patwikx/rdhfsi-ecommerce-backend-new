@@ -31,6 +31,8 @@ type Product = {
   model: string | null;
   baseUom: string;
   retailPrice: number;
+  wholesalePrice: number | null;
+  poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
   moq: number;
@@ -79,6 +81,8 @@ export function ProductForm({ product, categories, brands, onSubmitCallback }: P
       model: product?.model || '',
       baseUom: product?.baseUom || 'PC',
       retailPrice: product?.retailPrice ? Number(product.retailPrice) : 0,
+      wholesalePrice: product?.wholesalePrice ? Number(product.wholesalePrice) : null,
+      poPrice: product?.poPrice ? Number(product.poPrice) : null,
       costPrice: product?.costPrice ? Number(product.costPrice) : null,
       compareAtPrice: product?.compareAtPrice ? Number(product.compareAtPrice) : null,
       moq: product?.moq || 1,
@@ -272,43 +276,46 @@ export function ProductForm({ product, categories, brands, onSubmitCallback }: P
               <p className="text-xs text-muted-foreground">Organize product by category and brand</p>
             </div>
             
-            <div className="space-y-1">
-              <Label htmlFor="categoryId">Category <span className="text-destructive">*</span></Label>
-              <Select value={watch('categoryId')} onValueChange={(value) => setValue('categoryId', value)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.categoryId && <p className="text-xs text-destructive">{errors.categoryId.message}</p>}
-            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="categoryId">Category <span className="text-destructive">*</span></Label>
+                <Select value={watch('categoryId')} onValueChange={(value) => setValue('categoryId', value)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.categoryId && <p className="text-xs text-destructive">{errors.categoryId.message}</p>}
+              </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="brandId">Brand</Label>
-              <Select
-                value={(watch('brandId') as string) || 'none'}
-                onValueChange={(value) => {
-                  if (value === 'none') {
-                    setValue('brandId', null);
-                  } else {
-                    setValue('brandId', value);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Brand</SelectItem>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-1">
+                <Label htmlFor="brandId">Brand</Label>
+                <Select
+                  value={(watch('brandId') as string) || 'none'}
+                  onValueChange={(value) => {
+                    if (value === 'none') {
+                      setValue('brandId', null);
+                    } else {
+                      setValue('brandId', value);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Select brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Brand</SelectItem>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -322,7 +329,7 @@ export function ProductForm({ product, categories, brands, onSubmitCallback }: P
           <div className="border rounded-lg p-4 space-y-3">
             <div>
               <h3 className="font-semibold">Pricing</h3>
-              <p className="text-xs text-muted-foreground">Set retail, cost, and bulk pricing</p>
+              <p className="text-xs text-muted-foreground">Set retail, wholesale, PO, and bulk pricing</p>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
@@ -336,6 +343,16 @@ export function ProductForm({ product, categories, brands, onSubmitCallback }: P
                 <Label htmlFor="retailPrice">Retail <span className="text-destructive">*</span></Label>
                 <Input id="retailPrice" type="number" step="0.01" {...register('retailPrice', { valueAsNumber: true })} className="h-9" />
                 {errors.retailPrice && <p className="text-xs text-destructive">{errors.retailPrice.message}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="wholesalePrice" className="text-blue-600">Wholesale</Label>
+                <Input id="wholesalePrice" type="number" step="0.01" {...register('wholesalePrice', { valueAsNumber: true })} className="h-9" />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="poPrice" className="text-purple-600">PO Price</Label>
+                <Input id="poPrice" type="number" step="0.01" {...register('poPrice', { valueAsNumber: true })} className="h-9" />
               </div>
 
               <div className="space-y-1">

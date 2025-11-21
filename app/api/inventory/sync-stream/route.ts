@@ -7,6 +7,8 @@ interface LegacyInventoryItem {
   productCode: string;
   name: string;
   retailPrice: number;
+  wholesalePrice: number;
+  poPrice: number;
   onHandQuantity: number;
   baseUnitCode: string;
   categoryName: string;
@@ -178,21 +180,25 @@ async function fetchLegacyInventory(siteCode: string): Promise<LegacyInventoryIt
   const pool = await getConnection();
 
   const query = `
-    SELECT 
-      a.Barcode as barcode,
-      a.productCode as productCode,
-      a.name as name,
-      a.retailPrice as retailPrice,
-      iq.onHandQuantity as onHandQuantity,
-      a.baseUnitCode as baseUnitCode,
-      c.name as categoryName,
-      c.categoryId as categoryId,
-      s.siteCode as siteCode,
-      s.name as siteName
-    FROM Product as a
-    LEFT JOIN dbo.InventoryQuantity as iq ON a.productCode = iq.productCode
-    LEFT JOIN dbo.Site as s ON iq.siteCode = s.siteCode
-    LEFT JOIN dbo.Category as c ON a.departmentId = c.categoryId
+select a.productCode as productCode,
+       a.Barcode as Barcode, 
+       a.name as Description, 
+       a.retailPrice as SRP, 
+       a.wholesalePrice as [Wholesale Price], 
+	   a.price4 as [PO Price],
+       iq.onHandQuantity as Quantity, 
+       a.baseUnitCode as UoM, 
+       c.categoryId as categoryId,
+       c.name as Category,
+       s.siteCode as siteCode,
+       s.name as Site 
+from Product as a
+left join dbo.InventoryQuantity as iq 
+    on a.productCode = iq.productCode
+left join dbo.Site as s 
+    on iq.siteCode = s.siteCode
+left join dbo.Category as c 
+    on a.departmentId = c.categoryId
     WHERE iq.siteCode = @siteCode
       AND a.isConcession = '0'
       AND a.status = 'A'
@@ -206,16 +212,18 @@ async function fetchLegacyInventory(siteCode: string): Promise<LegacyInventoryIt
     .query(query);
 
   return result.recordset.map(row => ({
-    barcode: row.barcode || '',
+    barcode: row.Barcode || '',
     productCode: row.productCode || '',
-    name: row.name || '',
-    retailPrice: parseFloat(row.retailPrice) || 0,
-    onHandQuantity: parseFloat(row.onHandQuantity) || 0,
-    baseUnitCode: row.baseUnitCode || 'PC',
-    categoryName: row.categoryName || 'Uncategorized',
+    name: row.Description || '',
+    retailPrice: parseFloat(row.SRP) || 0,
+    wholesalePrice: parseFloat(row['Wholesale Price']) || 0,
+    poPrice: parseFloat(row['PO Price']) || 0,
+    onHandQuantity: parseFloat(row.Quantity) || 0,
+    baseUnitCode: row.UoM || 'PC',
+    categoryName: row.Category || 'Uncategorized',
     categoryId: row.categoryId || '',
     siteCode: row.siteCode || '',
-    siteName: row.siteName || ''
+    siteName: row.Site || ''
   }));
 }
 
@@ -316,6 +324,8 @@ async function upsertProduct(item: LegacyInventoryItem, categoryId: string) {
       data: {
         name: item.name,
         retailPrice: item.retailPrice,
+        wholesalePrice: item.wholesalePrice,
+        poPrice: item.poPrice,
         baseUom: item.baseUnitCode,
         categoryId,
         legacyProductCode: item.productCode,
@@ -333,6 +343,8 @@ async function upsertProduct(item: LegacyInventoryItem, categoryId: string) {
       name: item.name,
       slug,
       retailPrice: item.retailPrice,
+      wholesalePrice: item.wholesalePrice,
+      poPrice: item.poPrice,
       baseUom: item.baseUnitCode,
       categoryId,
       legacyProductCode: item.productCode,

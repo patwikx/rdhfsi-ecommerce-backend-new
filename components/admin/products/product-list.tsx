@@ -46,6 +46,8 @@ type Product = {
   name: string;
   slug: string;
   retailPrice: number;
+  wholesalePrice?: number | null;
+  poPrice?: number | null;
   isActive: boolean;
   isFeatured: boolean;
   qrCodeImage?: string | null;
@@ -104,39 +106,56 @@ export function ProductList({ products: initialProducts, userRole }: ProductList
     setGenerationProgress(0);
     setGeneratedCount(0);
 
-    // Simulate progress animation
-    const progressInterval = setInterval(() => {
-      setGenerationProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
     try {
-      const result = await generateProductQRCodes();
-      clearInterval(progressInterval);
+      // First, get the list of products without QR codes
+      const { getProductsWithoutQRCount, generateSingleProductQRCode } = await import('@/app/actions/product-actions');
+      const countResult = await getProductsWithoutQRCount();
       
-      if (result.success) {
-        setGenerationProgress(100);
-        setGeneratedCount(result.data?.generated || 0);
-        
-        // Show completion for a moment before closing
-        setTimeout(() => {
-          toast.success(`Generated QR codes for ${result.data?.generated} products`);
-          setQrDialogOpen(false);
-          setGenerationProgress(0);
-          setGeneratedCount(0);
-          router.refresh();
-        }, 1000);
-      } else {
-        toast.error(result.error || 'Failed to generate QR codes');
-        setGenerationProgress(0);
+      if (!countResult.success || !countResult.data) {
+        toast.error(countResult.error || 'Failed to get product count');
+        setIsGeneratingQR(false);
+        return;
       }
+
+      const { productIds } = countResult.data;
+      const totalProducts = productIds.length;
+
+      if (totalProducts === 0) {
+        toast.info('All products already have QR codes');
+        setQrDialogOpen(false);
+        setIsGeneratingQR(false);
+        return;
+      }
+
+      let successCount = 0;
+
+      // Process each product one by one
+      for (let i = 0; i < productIds.length; i++) {
+        const productId = productIds[i];
+        
+        try {
+          const result = await generateSingleProductQRCode(productId);
+          if (result.success) {
+            successCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to generate QR for product ${productId}:`, error);
+        }
+
+        // Update progress
+        setGeneratedCount(i + 1);
+        setGenerationProgress(Math.round(((i + 1) / totalProducts) * 100));
+      }
+
+      // Show completion
+      setTimeout(() => {
+        toast.success(`Generated QR codes for ${successCount} products`);
+        setQrDialogOpen(false);
+        setGenerationProgress(0);
+        setGeneratedCount(0);
+        router.refresh();
+      }, 1000);
     } catch (error) {
-      clearInterval(progressInterval);
       toast.error('An error occurred while generating QR codes');
       setGenerationProgress(0);
     } finally {
@@ -222,7 +241,9 @@ export function ProductList({ products: initialProducts, userRole }: ProductList
               <TableHead>Barcode</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead>Retail Price</TableHead>
+              <TableHead>Wholesale</TableHead>
+              <TableHead>PO Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-center">Stock</TableHead>
               {['ADMIN', 'MANAGER'].includes(userRole) && <TableHead className="w-[70px]"></TableHead>}
@@ -261,6 +282,12 @@ export function ProductList({ products: initialProducts, userRole }: ProductList
                   </TableCell>
                   <TableCell className="font-semibold">
                     ₱{Number(product.retailPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-sm text-blue-600">
+                    {product.wholesalePrice ? `₱${Number(product.wholesalePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  </TableCell>
+                  <TableCell className="text-sm text-purple-600">
+                    {product.poPrice ? `₱${Number(product.poPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -368,10 +395,13 @@ export function ProductList({ products: initialProducts, userRole }: ProductList
                 <div className="text-center py-6">
                   <QrCode className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse" />
                   <p className="text-sm font-medium mb-2">Generating QR Codes...</p>
+                  <p className="text-lg font-bold text-primary mb-2">
+                    {generatedCount} / {productsWithoutQR}
+                  </p>
                   <p className="text-xs text-muted-foreground mb-4">
                     {generationProgress === 100 
                       ? `Successfully generated ${generatedCount} QR codes!`
-                      : 'Please wait while we generate QR codes for your products'
+                      : `Processing product ${generatedCount} of ${productsWithoutQR}...`
                     }
                   </p>
                 </div>

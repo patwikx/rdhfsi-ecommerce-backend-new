@@ -76,7 +76,7 @@ export async function getAllProducts(filters?: {
         },
         images: {
           select: { url: true, sortOrder: true },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: 'desc' },
           take: 1,
         },
         _count: {
@@ -90,6 +90,8 @@ export async function getAllProducts(filters?: {
     const products = productsData.map(product => ({
       ...product,
       retailPrice: Number(product.retailPrice),
+      wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : null,
+      poPrice: product.poPrice ? Number(product.poPrice) : null,
       costPrice: product.costPrice ? Number(product.costPrice) : null,
       compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
       bulkPrice: product.bulkPrice ? Number(product.bulkPrice) : null,
@@ -120,6 +122,8 @@ export async function getProductById(id: string): Promise<ActionResult<{
   model: string | null;
   baseUom: string;
   retailPrice: number;
+  wholesalePrice: number | null;
+  poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
   moq: number;
@@ -161,7 +165,7 @@ export async function getProductById(id: string): Promise<ActionResult<{
       where: { id },
       include: {
         images: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: 'desc' },
         },
       },
     });
@@ -174,6 +178,8 @@ export async function getProductById(id: string): Promise<ActionResult<{
     const product = {
       ...productData,
       retailPrice: Number(productData.retailPrice),
+      wholesalePrice: productData.wholesalePrice ? Number(productData.wholesalePrice) : null,
+      poPrice: productData.poPrice ? Number(productData.poPrice) : null,
       costPrice: productData.costPrice ? Number(productData.costPrice) : null,
       compareAtPrice: productData.compareAtPrice ? Number(productData.compareAtPrice) : null,
       bulkPrice: productData.bulkPrice ? Number(productData.bulkPrice) : null,
@@ -478,6 +484,8 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
   name: string;
   description: string | null;
   retailPrice: number;
+  wholesalePrice: number | null;
+  poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
   isActive: boolean;
@@ -539,7 +547,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
         },
         images: {
           select: { url: true, sortOrder: true },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: { sortOrder: 'desc' },
         },
       },
     });
@@ -558,7 +566,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
         site: true,
       },
       orderBy: [
-        { site: { name: 'asc' } },
+        { site: { name: 'desc' } },
         { quantity: 'desc' },
       ],
     });
@@ -618,6 +626,8 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
       name: product.name,
       description: product.description,
       retailPrice: Number(product.retailPrice),
+      wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : null,
+      poPrice: product.poPrice ? Number(product.poPrice) : null,
       costPrice: product.costPrice ? Number(product.costPrice) : null,
       compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
       isActive: product.isActive,
@@ -632,6 +642,139 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
   } catch (error) {
     console.error('Error fetching product by QR code:', error);
     return { success: false, error: 'Failed to fetch product details' };
+  }
+}
+
+/**
+ * Get count of products without QR codes
+ */
+export async function getProductsWithoutQRCount(): Promise<ActionResult<{ count: number; productIds: string[] }>> {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Unauthorized: Please log in',
+      };
+    }
+
+    if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+      return {
+        success: false,
+        error: 'Unauthorized: Insufficient permissions',
+      };
+    }
+
+    const productsWithoutQR = await prisma.product.findMany({
+      where: {
+        OR: [
+          { qrCode: null },
+          { qrCodeImage: null },
+        ],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        count: productsWithoutQR.length,
+        productIds: productsWithoutQR.map(p => p.id),
+      },
+    };
+  } catch (error) {
+    console.error('Get products without QR count error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get count',
+    };
+  }
+}
+
+/**
+ * Generate QR code for a single product
+ */
+export async function generateSingleProductQRCode(productId: string): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Unauthorized: Please log in',
+      };
+    }
+
+    if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+      return {
+        success: false,
+        error: 'Unauthorized: Insufficient permissions',
+      };
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        sku: true,
+        name: true,
+        barcode: true,
+      },
+    });
+
+    if (!product) {
+      return {
+        success: false,
+        error: 'Product not found',
+      };
+    }
+
+    // Import QRCode dynamically
+    const QRCode = (await import('qrcode')).default;
+
+    // Create QR data with product information
+    const qrData = JSON.stringify({
+      type: 'PRODUCT',
+      productId: product.id,
+      sku: product.sku,
+      name: product.name,
+      barcode: product.barcode,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Generate QR code as data URL
+    const qrCodeImage = await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      width: 300,
+      margin: 2,
+    });
+
+    // Generate unique QR code string
+    const qrCode = `PRODUCT-${product.sku}-${Date.now()}`;
+
+    // Update product with QR code
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        qrCode,
+        qrCodeImage,
+      },
+    });
+
+    return {
+      success: true,
+      data: { success: true },
+    };
+  } catch (error) {
+    console.error('Generate single QR code error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate QR code',
+    };
   }
 }
 

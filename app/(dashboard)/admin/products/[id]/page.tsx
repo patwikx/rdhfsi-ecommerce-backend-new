@@ -71,6 +71,43 @@ export default async function EditProductPage({
         </div>
       </div>
 
+      {/* Pricing Overview */}
+      <div className="border rounded-lg p-6">
+        <h2 className="text-lg font-semibold mb-4">Pricing Information</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border rounded-lg p-4">
+            <p className="text-sm text-muted-foreground mb-1">Retail Price (SRP)</p>
+            <p className="text-xl font-bold">
+              ₱{Number(product.retailPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          {product.wholesalePrice && (
+            <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950">
+              <p className="text-sm text-muted-foreground mb-1">Wholesale Price</p>
+              <p className="text-xl font-bold text-blue-600">
+                ₱{Number(product.wholesalePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+          {product.poPrice && (
+            <div className="border rounded-lg p-4 bg-purple-50 dark:bg-purple-950">
+              <p className="text-sm text-muted-foreground mb-1">PO Price</p>
+              <p className="text-xl font-bold text-purple-600">
+                ₱{Number(product.poPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+          {product.costPrice && (
+            <div className="border rounded-lg p-4 bg-orange-50 dark:bg-orange-950">
+              <p className="text-sm text-muted-foreground mb-1">Cost Price</p>
+              <p className="text-xl font-bold text-orange-600">
+                ₱{Number(product.costPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <ProductForm product={product} categories={categories} brands={brands} />
     </div>
   );

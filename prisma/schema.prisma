@@ -203,6 +203,8 @@ model Product {
   // Pricing
   baseUom        String // Base unit of measure (e.g., "PC", "BOX", "KG")
   retailPrice    Decimal  @db.Decimal(10, 2)
+  wholesalePrice Decimal? @db.Decimal(10, 2) // Wholesale price
+  poPrice        Decimal? @db.Decimal(10, 2) // Purchase Order price
   costPrice      Decimal? @db.Decimal(10, 2)
   compareAtPrice Decimal? @db.Decimal(10, 2) // Original price for sale items
 

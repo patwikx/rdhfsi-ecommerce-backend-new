@@ -18,6 +18,8 @@ export const productFormSchema = z.object({
   // Pricing
   baseUom: z.string().min(1, 'Base UOM is required').max(20),
   retailPrice: z.number().min(0, 'Retail price must be positive'),
+  wholesalePrice: z.number().min(0).optional().nullable(),
+  poPrice: z.number().min(0).optional().nullable(),
   costPrice: z.number().min(0).optional().nullable(),
   compareAtPrice: z.number().min(0).optional().nullable(),
   
