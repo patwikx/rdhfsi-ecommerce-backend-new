@@ -50,6 +50,7 @@ model User {
   customPricing    CustomerPricing[]
   reorderTemplates ReorderTemplate[]
   activityLogs     ActivityLog[]
+  notifications    Notification[]
 }
 
 model Account {
@@ -1476,4 +1477,46 @@ enum CycleCountItemStatus {
   VARIANCE_FOUND
   ADJUSTED
   VERIFIED
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String
+  link    String? // Optional link to related resource
+
+  // Status
+  isRead Boolean @default(false)
+
+  // Reference to related entities
+  referenceType String? // "ORDER", "QUOTE", "PRODUCT", etc.
+  referenceId   String?
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  ORDER_CONFIRMED
+  ORDER_SHIPPED
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  QUOTE_RECEIVED
+  QUOTE_RESPONDED
+  QUOTE_DECLINED
+  PRODUCT_BACK_IN_STOCK
+  PRICE_DROP
+  SYSTEM
 }

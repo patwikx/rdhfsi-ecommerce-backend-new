@@ -242,9 +242,17 @@ const getNavigationItems = (
             url: "/admin/quotes",
           },
           {
-            title: "Pending Quotes",
-            url: "/admin/quotes/pending",
+            title: "Pending",
+            url: "/admin/quotes?status=PENDING",
             badge: pendingCounts?.quotes,
+          },
+          {
+            title: "Quoted",
+            url: "/admin/quotes?status=QUOTED",
+          },
+          {
+            title: "Accepted",
+            url: "/admin/quotes?status=ACCEPTED",
           },
         ],
       },

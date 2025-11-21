@@ -269,7 +269,51 @@ export async function createProduct(data: ProductFormValues, images: { url: stri
           })),
         },
       },
+      include: {
+        category: {
+          select: { name: true },
+        },
+      },
     });
+
+    // Create notifications for all customers about new product
+    if (product.isPublished && product.isActive) {
+      try {
+        // Get all customer users
+        const customers = await prisma.user.findMany({
+          where: {
+            role: {
+              in: ['CUSTOMER', 'CORPORATE'],
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        // Create notifications for all customers
+        const notifications = customers.map(customer => ({
+          userId: customer.id,
+          type: 'SYSTEM' as const,
+          title: 'New Product Available',
+          message: `Check out our new product: ${product.name} in ${product.category.name}`,
+          link: `/products/${product.slug}`,
+          referenceType: 'PRODUCT',
+          referenceId: product.id,
+          isRead: false,
+        }));
+
+        // Batch create notifications
+        if (notifications.length > 0) {
+          await prisma.notification.createMany({
+            data: notifications,
+          });
+        }
+      } catch (error) {
+        console.error('Error creating product notifications:', error);
+        // Don't fail the product creation if notifications fail
+      }
+    }
 
     revalidatePath('/admin/products');
     

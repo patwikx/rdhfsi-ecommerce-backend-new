@@ -52,11 +52,6 @@ export default async function OrderDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/orders">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Order {order.orderNumber}</h1>
           <p className="text-muted-foreground">

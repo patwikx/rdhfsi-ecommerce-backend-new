@@ -51,6 +51,7 @@ import {
   Shield
 } from 'lucide-react';
 import { SystemUpdateNotes } from "@/components/ui/system-update-notes";
+import { AdminNotifications } from "@/components/admin-notifications";
 
 interface BreadcrumbItem {
   label: string;
@@ -232,7 +233,10 @@ export function DynamicBreadcrumbs() {
         </BreadcrumbList>
       </Breadcrumb>
       
-
+      <div className="flex items-center gap-2">
+        <AdminNotifications />
+        <SystemUpdateNotes />
+      </div>
     </div>
   );
 }

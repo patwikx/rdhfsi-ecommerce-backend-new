@@ -216,6 +216,36 @@ export async function getOrderById(id: string): Promise<ActionResult<{
 }
 
 /**
+ * Create notification for user
+ */
+async function createNotification(
+  userId: string,
+  type: 'ORDER_CONFIRMED' | 'ORDER_SHIPPED' | 'ORDER_DELIVERED' | 'ORDER_CANCELLED',
+  title: string,
+  message: string,
+  referenceId: string,
+  link?: string
+): Promise<void> {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        message,
+        link,
+        referenceType: 'ORDER',
+        referenceId,
+        isRead: false,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    // Don't throw - notification failure shouldn't break the main operation
+  }
+}
+
+/**
  * Update order status
  */
 export async function updateOrderStatus(
@@ -233,6 +263,21 @@ export async function updateOrderStatus(
   }
 
   try {
+    // Get order details for notification
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        orderNumber: true,
+        userId: true,
+        status: true,
+      },
+    });
+
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
     const updateData: {
       status: OrderStatus;
       completedAt?: Date;
@@ -252,6 +297,49 @@ export async function updateOrderStatus(
       where: { id: orderId },
       data: updateData,
     });
+
+    // Create notification for customer based on status
+    if (order.userId) {
+      let notificationType: 'ORDER_CONFIRMED' | 'ORDER_SHIPPED' | 'ORDER_DELIVERED' | 'ORDER_CANCELLED';
+      let title: string;
+      let message: string;
+
+      switch (status) {
+        case 'CONFIRMED':
+          notificationType = 'ORDER_CONFIRMED';
+          title = 'Order Confirmed';
+          message = `Your order #${order.orderNumber} has been confirmed and is being processed.`;
+          break;
+        case 'SHIPPED':
+          notificationType = 'ORDER_SHIPPED';
+          title = 'Order Shipped';
+          message = `Your order #${order.orderNumber} has been shipped and is on its way!`;
+          break;
+        case 'DELIVERED':
+          notificationType = 'ORDER_DELIVERED';
+          title = 'Order Delivered';
+          message = `Your order #${order.orderNumber} has been delivered. Thank you for your purchase!`;
+          break;
+        case 'CANCELLED':
+          notificationType = 'ORDER_CANCELLED';
+          title = 'Order Cancelled';
+          message = `Your order #${order.orderNumber} has been cancelled.`;
+          break;
+        default:
+          notificationType = 'ORDER_CONFIRMED';
+          title = 'Order Status Updated';
+          message = `Your order #${order.orderNumber} status has been updated to ${status}.`;
+      }
+
+      await createNotification(
+        order.userId,
+        notificationType,
+        title,
+        message,
+        order.id,
+        `/orders/${order.id}`
+      );
+    }
 
     revalidatePath('/admin/orders');
     revalidatePath(`/admin/orders/${orderId}`);

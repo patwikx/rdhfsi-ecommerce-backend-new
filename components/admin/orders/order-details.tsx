@@ -243,7 +243,8 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
               )}
             </div>
 
-            <div className="pt-3 border-t">
+            <div className='grid grid-cols-2'>
+<div className="pt-3 border-t">
               <p className="text-sm text-muted-foreground">Payment Status</p>
               <Badge className={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
                 {order.paymentStatus}
@@ -256,6 +257,10 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
                 <p className="font-medium">{order.paymentMethod}</p>
               </div>
             )}
+
+            </div>
+
+            
 
             {order.poNumber && (
               <div className="pt-3 border-t">
