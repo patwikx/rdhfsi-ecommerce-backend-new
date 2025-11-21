@@ -47,12 +47,14 @@ export default async function ProductsPage() {
           </p>
         </div>
         {['ADMIN', 'MANAGER'].includes(session.user.role) && (
-          <Button asChild>
-            <Link href="/admin/products/create">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild>
+              <Link href="/admin/products/create">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 

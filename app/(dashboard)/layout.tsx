@@ -8,6 +8,7 @@ import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { Separator } from '@/components/ui/separator';
 import { SessionProvider } from 'next-auth/react';
 import { SiteProvider } from '@/components/context/site-context';
+import { DynamicBreadcrumbs } from '@/components/dynamic-breadcrumbs';
 import type { SiteItem } from '@/types/site-types';
 
 export const metadata = {
@@ -152,7 +153,7 @@ export default async function DashboardLayout({
               <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-4" />
-                <h1 className="text-lg font-semibold">E-Commerce Dashboard</h1>
+                <DynamicBreadcrumbs />
               </header>
 
               {/* Main Content */}

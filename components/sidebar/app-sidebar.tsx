@@ -15,7 +15,8 @@ import {
   MessageSquare,
   BarChart3,
   DollarSign,
-  UserCog
+  UserCog,
+  ScanLine
 } from "lucide-react"
 import {
   Sidebar,
@@ -111,6 +112,11 @@ const getNavigationItems = (
             url: "/admin/brands",
           },
         ],
+      },
+      {
+        title: "Scanner",
+        url: "/admin/scanner",
+        icon: ScanLine,
       },
       {
         title: "Orders",
@@ -214,6 +220,10 @@ const getNavigationItems = (
           {
             title: "Stock Transfer",
             url: "/admin/inventory/transfer",
+          },
+          {
+            title: "Shelf Management",
+            url: "/admin/inventory/shelves",
           },
           {
             title: "Sites",

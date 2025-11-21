@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { StockAdjustmentForm } from '@/components/admin/inventory/stock-adjustment-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -122,27 +121,23 @@ export default async function StockAdjustmentPage({
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Form */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Adjustment Details</CardTitle>
-              <CardDescription>
+          <div className="border rounded-lg p-6">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold">Adjustment Details</h3>
+              <p className="text-sm text-muted-foreground">
                 Make adjustments to inventory quantity
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <StockAdjustmentForm inventory={inventory} />
-            </CardContent>
-          </Card>
+              </p>
+            </div>
+            <StockAdjustmentForm inventory={inventory} />
+          </div>
         </div>
 
         {/* Sidebar Info */}
         <div className="space-y-6">
           {/* Current Stock Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Stock</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="border rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Current Stock</h3>
+            <div className="space-y-4">
               <div>
                 <div className="text-sm text-muted-foreground">Product</div>
                 <div className="font-semibold">{inventory.product.name}</div>
@@ -178,46 +173,44 @@ export default async function StockAdjustmentPage({
                   {inventory.availableQty} {inventory.product.baseUom}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Recent Movements */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Last 10 movements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentMovements.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No recent activity</p>
-                ) : (
-                  recentMovements.map((movement: any) => (
-                    <div key={movement.id} className="text-sm border-b pb-2 last:border-0">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium capitalize">
-                            {movement.movementType.toLowerCase().replace('_', ' ')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {movement.user?.name || movement.user?.email || 'System'}
-                          </div>
+          <div className="border rounded-lg p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">Recent Activity</h3>
+              <p className="text-sm text-muted-foreground">Last 10 movements</p>
+            </div>
+            <div className="space-y-3">
+              {recentMovements.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No recent activity</p>
+              ) : (
+                recentMovements.map((movement: any) => (
+                  <div key={movement.id} className="text-sm border-b pb-2 last:border-0">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium capitalize">
+                          {movement.movementType.toLowerCase().replace('_', ' ')}
                         </div>
-                        <div className={`font-semibold ${
-                          Number(movement.quantityChange) > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {Number(movement.quantityChange) > 0 ? '+' : ''}{Number(movement.quantityChange)}
+                        <div className="text-xs text-muted-foreground">
+                          {movement.user?.name || movement.user?.email || 'System'}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(movement.createdAt).toLocaleDateString()}
+                      <div className={`font-semibold ${
+                        Number(movement.quantityChange) > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {Number(movement.quantityChange) > 0 ? '+' : ''}{Number(movement.quantityChange)}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(movement.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

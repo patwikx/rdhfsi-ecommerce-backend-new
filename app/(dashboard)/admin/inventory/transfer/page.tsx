@@ -124,6 +124,9 @@ async function getInventoryForTransfer() {
     quantity: Number(inv.quantity),
     reservedQty: Number(inv.reservedQty),
     availableQty: Number(inv.availableQty),
+    minStockLevel: inv.minStockLevel ? Number(inv.minStockLevel) : null,
+    maxStockLevel: inv.maxStockLevel ? Number(inv.maxStockLevel) : null,
+    reorderPoint: inv.reorderPoint ? Number(inv.reorderPoint) : null,
   }));
 }
 

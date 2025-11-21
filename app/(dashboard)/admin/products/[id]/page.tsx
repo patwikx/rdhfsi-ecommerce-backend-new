@@ -1,5 +1,6 @@
 import { getProductById } from '@/app/actions/product-actions';
 import { ProductForm } from '@/components/admin/products/product-form';
+import { ProductQRCode } from '@/components/admin/products/product-qr-code';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
@@ -29,12 +30,12 @@ export default async function EditProductPage({
     prisma.category.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: 'desc' },
     }),
     prisma.brand.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: 'desc' },
     }),
   ]);
 
@@ -47,11 +48,10 @@ export default async function EditProductPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/products">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+
+        {/* QR Code on the left */}
+        <ProductQRCode product={product} />
+        
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
           <p className="text-muted-foreground">SKU: {product.sku}</p>

@@ -467,3 +467,287 @@ export async function toggleProductStatus(id: string): Promise<ActionResult> {
     return { success: false, error: 'Failed to toggle product status' };
   }
 }
+
+/**
+ * Get product details by SKU or barcode for QR scanner
+ */
+export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
+  id: string;
+  sku: string;
+  barcode: string;
+  name: string;
+  description: string | null;
+  retailPrice: number;
+  costPrice: number | null;
+  compareAtPrice: number | null;
+  isActive: boolean;
+  category: { name: string };
+  brand: { name: string } | null;
+  images: { url: string; sortOrder: number }[];
+  inventories: {
+    id: string;
+    quantity: number;
+    site: { id: string; name: string; code: string };
+    shelf: { id: string; code: string; aisle: { code: string } } | null;
+  }[];
+  totalQuantity: number;
+}>> {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  if (!['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+
+  try {
+    // Try to parse QR data as JSON first
+    let productId: string | null = null;
+    let sku: string | null = null;
+    let barcode: string | null = null;
+
+    try {
+      const parsed = JSON.parse(qrData);
+      if (parsed.type === 'PRODUCT') {
+        productId = parsed.productId;
+        sku = parsed.sku;
+        barcode = parsed.barcode;
+      }
+    } catch {
+      // If not JSON, treat as SKU or barcode
+      sku = qrData;
+      barcode = qrData;
+    }
+
+    // Find product by ID, SKU, or barcode
+    const product = await prisma.product.findFirst({
+      where: {
+        OR: [
+          productId ? { id: productId } : {},
+          sku ? { sku } : {},
+          barcode ? { barcode } : {},
+        ].filter(condition => Object.keys(condition).length > 0),
+      },
+      include: {
+        category: {
+          select: { name: true },
+        },
+        brand: {
+          select: { name: true },
+        },
+        images: {
+          select: { url: true, sortOrder: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!product) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Get inventories with site information
+    const inventoriesData = await prisma.inventory.findMany({
+      where: {
+        productId: product.id,
+        quantity: { gt: 0 },
+      },
+      include: {
+        site: true,
+      },
+      orderBy: [
+        { site: { name: 'asc' } },
+        { quantity: 'desc' },
+      ],
+    });
+
+    // Get bin locations for this product
+    const binInventories = await prisma.binInventory.findMany({
+      where: {
+        productId: product.id,
+        quantity: { gt: 0 },
+      },
+      include: {
+        shelf: {
+          include: {
+            aisle: true,
+          },
+        },
+        site: true,
+      },
+    });
+
+    // Transform inventories to match expected type
+    const inventories = inventoriesData.map(inv => {
+      // Find primary bin location for this site
+      const primaryBin = binInventories.find(
+        bin => bin.siteId === inv.siteId && bin.isPrimary
+      );
+      // Or just get the first bin for this site
+      const anyBin = binInventories.find(bin => bin.siteId === inv.siteId);
+      const binLocation = primaryBin || anyBin;
+
+      return {
+        id: inv.id,
+        quantity: Number(inv.quantity),
+        site: {
+          id: inv.site.id,
+          name: inv.site.name,
+          code: inv.site.code,
+        },
+        shelf: binLocation && binLocation.shelf.aisle ? {
+          id: binLocation.shelf.id,
+          code: binLocation.shelf.code,
+          aisle: {
+            code: binLocation.shelf.aisle.code,
+          },
+        } : null,
+      };
+    });
+
+    // Calculate total quantity across all sites
+    const totalQuantity = inventories.reduce((sum: number, inv) => sum + inv.quantity, 0);
+
+    // Convert Decimal fields to numbers
+    const productData = {
+      id: product.id,
+      sku: product.sku,
+      barcode: product.barcode,
+      name: product.name,
+      description: product.description,
+      retailPrice: Number(product.retailPrice),
+      costPrice: product.costPrice ? Number(product.costPrice) : null,
+      compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+      isActive: product.isActive,
+      category: product.category,
+      brand: product.brand,
+      images: product.images,
+      inventories,
+      totalQuantity,
+    };
+
+    return { success: true, data: productData };
+  } catch (error) {
+    console.error('Error fetching product by QR code:', error);
+    return { success: false, error: 'Failed to fetch product details' };
+  }
+}
+
+/**
+ * Generate QR codes for products without QR codes
+ */
+export async function generateProductQRCodes(): Promise<ActionResult<{ generated: number }>> {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Unauthorized: Please log in',
+      };
+    }
+
+    // Check if user has permission
+    if (!['ADMIN', 'MANAGER'].includes(session.user.role)) {
+      return {
+        success: false,
+        error: 'Unauthorized: Insufficient permissions',
+      };
+    }
+
+    // Import QRCode dynamically
+    const QRCode = (await import('qrcode')).default;
+
+    // Get products without QR codes
+    const productsWithoutQR = await prisma.product.findMany({
+      where: {
+        OR: [
+          { qrCode: null },
+          { qrCodeImage: null },
+        ],
+      },
+      select: {
+        id: true,
+        sku: true,
+        name: true,
+        barcode: true,
+      },
+    });
+
+    if (productsWithoutQR.length === 0) {
+      return {
+        success: true,
+        data: { generated: 0 },
+      };
+    }
+
+    // Generate QR codes for each product
+    let generatedCount = 0;
+    
+    for (const product of productsWithoutQR) {
+      try {
+        // Create QR data with product information
+        const qrData = JSON.stringify({
+          type: 'PRODUCT',
+          productId: product.id,
+          sku: product.sku,
+          name: product.name,
+          barcode: product.barcode,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Generate QR code as data URL
+        const qrCodeImage = await QRCode.toDataURL(qrData, {
+          errorCorrectionLevel: 'H',
+          type: 'image/png',
+          width: 300,
+          margin: 2,
+        });
+
+        // Generate unique QR code string
+        const qrCode = `PRODUCT-${product.sku}-${Date.now()}`;
+
+        // Update product with QR code
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            qrCode,
+            qrCodeImage,
+          },
+        });
+
+        generatedCount++;
+      } catch (error) {
+        console.error(`Failed to generate QR for product ${product.sku}:`, error);
+        // Continue with next product
+      }
+    }
+
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'GENERATE_PRODUCT_QR_CODES',
+        description: `Generated QR codes for ${generatedCount} products`,
+        metadata: { count: generatedCount },
+      },
+    });
+
+    revalidatePath('/admin/products');
+
+    return {
+      success: true,
+      data: { generated: generatedCount },
+    };
+
+
+  } catch (error) {
+    console.error('Generate QR codes error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate QR codes',
+    };
+  }
+}

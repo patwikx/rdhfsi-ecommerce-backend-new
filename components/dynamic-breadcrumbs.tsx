@@ -52,10 +52,6 @@ import {
 } from 'lucide-react';
 import { SystemUpdateNotes } from "@/components/ui/system-update-notes";
 
-interface DynamicBreadcrumbsProps {
-  businessUnitId: string;
-}
-
 interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -64,10 +60,18 @@ interface BreadcrumbItem {
 }
 
 const routeConfig: Record<string, { label: string; icon?: React.ComponentType<{ className?: string }>; isClickable?: boolean }> = {
-  '': { label: 'Dashboard', icon: Home },
+  'dashboard': { label: 'Dashboard', icon: Home },
   
-  // Department Management
-  'departments': { label: 'Departments', icon: Building2 },
+  // Admin routes
+  'admin': { label: 'Admin', icon: Shield, isClickable: false },
+  'admin/products': { label: 'Products', icon: Package },
+  'admin/orders': { label: 'Orders', icon: FileText },
+  'admin/customers': { label: 'Customers', icon: Users },
+  'admin/users': { label: 'User Management', icon: UserCog },
+  'admin/inventory': { label: 'Inventory', icon: Package },
+  'admin/inventory/shelves': { label: 'Shelf Management', icon: Package },
+  'admin/sites': { label: 'Sites', icon: Building2 },
+  'admin/working-cap': { label: 'Working Capital', icon: Calculator },
   
   // Leave Management
   'leave-requests': { label: 'Leave Requests', icon: Calendar },
@@ -121,16 +125,6 @@ const routeConfig: Record<string, { label: string; icon?: React.ComponentType<{ 
   'asset-management/categories': { label: 'Categories', icon: FolderOpen },
   'asset-management/depreciation': { label: 'Depreciation', icon: Calculator },
   'asset-management/inventory': { label: 'Inventory Verification', icon: ClipboardCheck },
-
-  // Administration (parent route doesn't have a page)
-  'admin': { label: 'Administration', icon: Shield, isClickable: false },
-  'admin/users': { label: 'User Management', icon: Users },
-  'admin/business-units': { label: 'Business Units', icon: Building2 },
-  'admin/leave-types': { label: 'Leave Types', icon: FolderOpen },
-  'admin/leave-balances': { label: 'Leave Balances', icon: Calculator },
-  'admin/gl-accounts': { label: 'GL Accounts', icon: Calculator },
-  'admin/system-permissions': { label: 'System Permissions', icon: Shield },
-  'admin/audit-logs': { label: 'Audit Logs', icon: FileText },
   
   // Profile
   'profile': { label: 'Profile', icon: UserCheck },
@@ -139,7 +133,7 @@ const routeConfig: Record<string, { label: string; icon?: React.ComponentType<{ 
   'unauthorized': { label: 'Unauthorized Access', icon: Shield },
 };
 
-export function DynamicBreadcrumbs({ businessUnitId }: DynamicBreadcrumbsProps) {
+export function DynamicBreadcrumbs() {
   const pathname = usePathname();
   
   const generateBreadcrumbs = (): BreadcrumbItem[] => {
@@ -149,15 +143,14 @@ export function DynamicBreadcrumbs({ businessUnitId }: DynamicBreadcrumbsProps) 
     // Always start with Dashboard
     breadcrumbs.push({
       label: 'Dashboard',
-      href: `/${businessUnitId}`,
+      href: '/dashboard',
       icon: Home
     });
 
-    // Skip the business unit ID segment (index 0)
     let currentPath = '';
     let actualPath = ''; // Track the actual path with UUIDs for href generation
     
-    for (let i = 1; i < pathSegments.length; i++) {
+    for (let i = 0; i < pathSegments.length; i++) {
       const segment = pathSegments[i];
       
       // Build the actual path (including UUIDs)
@@ -175,7 +168,7 @@ export function DynamicBreadcrumbs({ businessUnitId }: DynamicBreadcrumbsProps) 
         
         breadcrumbs.push({
           label: parentConfig ? `${parentConfig.label} Details` : 'Details',
-          href: i === pathSegments.length - 1 ? undefined : `/${businessUnitId}/${actualPath}`,
+          href: i === pathSegments.length - 1 ? undefined : `/${actualPath}`,
           icon: parentConfig?.icon || Eye,
           isCurrentPage: i === pathSegments.length - 1
         });
@@ -192,8 +185,8 @@ export function DynamicBreadcrumbs({ businessUnitId }: DynamicBreadcrumbsProps) 
         const shouldHaveLink = !isLastSegment && (config?.isClickable !== false);
         
         breadcrumbs.push({
-          label: config?.label || segment.charAt(0).toUpperCase() + segment.slice(1).replace('-', ' '),
-          href: shouldHaveLink ? `/${businessUnitId}/${actualPath}` : undefined,
+          label: config?.label || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '),
+          href: shouldHaveLink ? `/${actualPath}` : undefined,
           icon: config?.icon,
           isCurrentPage: isLastSegment
         });
@@ -239,73 +232,7 @@ export function DynamicBreadcrumbs({ businessUnitId }: DynamicBreadcrumbsProps) 
         </BreadcrumbList>
       </Breadcrumb>
       
-      {/* Version & Developer Info */}
-      <div className="flex items-center gap-2">
-        <SystemUpdateNotes />
-        
-        <TooltipProvider>
-          <Popover>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <HelpCircle className="h-4 w-4" />
-                    <span className="sr-only">Developer Information</span>
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Developer Information</p>
-              </TooltipContent>
-            </Tooltip>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-medium leading-none flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  System Developer
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  RDRDC Group Leave Management System
-                </p>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Developer:</span>
-                  <span>Patrick L. Miranda</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Email:</span>
-                  <a 
-                    href="mailto:patricklacapmiranda@gmail.com" 
-                    className="text-blue-600 hover:underline"
-                  >
-                    patricklacapmiranda@gmail.com
-                  </a>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Contact:</span>
-                  <a 
-                    href="tel:+639273623310" 
-                    className="text-blue-600 hover:underline"
-                  >
-                    +63 927 362 3310
-                  </a>
-                </div>
-              </div>
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground">
-                  For technical support or system inquiries
-                </p>
-              </div>
-            </div>
-          </PopoverContent>
-          </Popover>
-        </TooltipProvider>
-      </div>
+
     </div>
   );
 }

@@ -135,6 +135,13 @@ model Site {
   inventories   Inventory[]
   transfersFrom StockTransfer[] @relation("TransferFrom")
   transfersTo   StockTransfer[] @relation("TransferTo")
+
+  zones          WarehouseZone[]
+  aisles         Aisle[]
+  shelves        Shelf[]
+  binInventories BinInventory[]
+  binMovements   BinMovement[]
+  cycleCounts    CycleCount[]
 }
 
 enum SiteType {
@@ -239,6 +246,10 @@ model Product {
   // Media
   images ProductImage[]
 
+  // QR Code
+  qrCode      String? // Unique QR code identifier
+  qrCodeImage String? // Base64 or URL to QR code image
+
   // Legacy system reference
   legacyProductCode String?
   lastSyncedAt      DateTime? // Last sync from legacy system
@@ -259,6 +270,10 @@ model Product {
   associations         ProductAssociation[]  @relation("ProductAssociations")
   associatedWith       ProductAssociation[]  @relation("AssociatedProducts")
   transferItems        StockTransferItem[]
+  binInventories       BinInventory[]
+  binMovements         BinMovement[]
+  cycleCounts          CycleCount[]
+  cycleCountItems      CycleCountItem[]
 
   @@index([categoryId])
   @@index([brandId])
@@ -1165,4 +1180,298 @@ enum BannerPlacement {
   BRANDS
   CATEGORY
   SEARCH
+}
+
+// ============================================
+// BIN/SHELF LOCATION TRACKING SYSTEM
+// ============================================
+
+// Warehouse zones (optional grouping)
+model WarehouseZone {
+  id     String @id @default(cuid())
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  code        String // "A", "B", "C" or "RECEIVING", "PICKING", "STORAGE"
+  name        String // "Zone A", "Receiving Area"
+  description String?
+
+  // Physical attributes
+  temperature String? // "AMBIENT", "COLD", "FROZEN"
+  isActive    Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aisles      Aisle[]
+  cycleCounts CycleCount[]
+
+  @@unique([siteId, code])
+  @@index([siteId])
+}
+
+// Aisles within zones
+model Aisle {
+  id     String         @id @default(cuid())
+  zoneId String?
+  zone   WarehouseZone? @relation(fields: [zoneId], references: [id])
+  siteId String
+  site   Site           @relation(fields: [siteId], references: [id])
+
+  code        String // "A1", "A2", "B1"
+  name        String // "Aisle A1"
+  description String?
+
+  isActive Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelves     Shelf[]
+  cycleCounts CycleCount[]
+
+  @@unique([siteId, code])
+  @@index([siteId])
+  @@index([zoneId])
+}
+
+// Shelves/Bins (the actual storage locations)
+model Shelf {
+  id      String  @id @default(cuid())
+  aisleId String?
+  aisle   Aisle?  @relation(fields: [aisleId], references: [id])
+  siteId  String
+  site    Site    @relation(fields: [siteId], references: [id])
+
+  // Location identifiers
+  code        String // "A1-S1", "A1-S2-L3" (Aisle-Shelf-Level)
+  name        String // "Shelf A1-S1"
+  description String?
+
+  // Physical attributes
+  level     Int? // Shelf level (1=bottom, 2=middle, 3=top)
+  position  Int? // Position in aisle
+  maxWeight Decimal? @db.Decimal(10, 2) // Max weight capacity in kg
+  maxVolume Decimal? @db.Decimal(10, 2) // Max volume in cubic meters
+
+  // QR Code for scanning
+  qrCode      String  @unique // Generated QR code identifier
+  qrCodeImage String? // URL to QR code image (if generated)
+
+  // Status
+  isActive     Boolean @default(true)
+  isAccessible Boolean @default(true) // Can be temporarily blocked
+
+  // Metadata
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  binInventories  BinInventory[]
+  movementsFrom   BinMovement[]    @relation("MovementFrom")
+  movementsTo     BinMovement[]    @relation("MovementTo")
+  cycleCounts     CycleCount[]
+  cycleCountItems CycleCountItem[]
+
+  @@unique([siteId, code])
+  @@index([siteId])
+  @@index([aisleId])
+  @@index([qrCode])
+  @@index([isActive, isAccessible])
+}
+
+// Inventory allocation to specific bins/shelves
+model BinInventory {
+  id        String  @id @default(cuid())
+  shelfId   String
+  shelf     Shelf   @relation(fields: [shelfId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  siteId    String
+  site      Site    @relation(fields: [siteId], references: [id])
+
+  // Quantity tracking
+  quantity     Decimal @db.Decimal(10, 2) // Quantity in this specific bin
+  reservedQty  Decimal @default(0) @db.Decimal(10, 2) // Reserved from this bin
+  availableQty Decimal @default(0) @db.Decimal(10, 2) // Available in this bin
+
+  // Bin-specific attributes
+  isPrimary Boolean @default(false) // Is this the primary picking location?
+  priority  Int     @default(0) // Pick priority (higher = pick first)
+
+  // Batch/Lot tracking (optional)
+  batchNumber  String?
+  lotNumber    String?
+  expiryDate   DateTime?
+  receivedDate DateTime?
+
+  // Audit
+  lastCountedAt DateTime?
+  lastCountedBy String?
+  lastMovedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements       BinMovement[]
+  cycleCountItems CycleCountItem[]
+
+  @@unique([shelfId, productId, batchNumber, lotNumber])
+  @@index([shelfId])
+  @@index([productId])
+  @@index([siteId])
+  @@index([isPrimary])
+  @@index([availableQty])
+  @@index([expiryDate])
+}
+
+// Track movements between bins
+model BinMovement {
+  id             String        @id @default(cuid())
+  binInventoryId String?
+  binInventory   BinInventory? @relation(fields: [binInventoryId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  siteId    String
+  site      Site    @relation(fields: [siteId], references: [id])
+
+  // Movement details
+  movementType BinMovementType
+
+  fromShelfId String?
+  fromShelf   Shelf?  @relation("MovementFrom", fields: [fromShelfId], references: [id])
+  toShelfId   String?
+  toShelf     Shelf?  @relation("MovementTo", fields: [toShelfId], references: [id])
+
+  quantity Decimal @db.Decimal(10, 2)
+
+  // Reference to order/transfer/etc
+  referenceType String? // "ORDER", "TRANSFER", "REPLENISHMENT", "CYCLE_COUNT"
+  referenceId   String?
+
+  // Reason and notes
+  reason String?
+  notes  String?
+
+  // Audit
+  performedBy String? // User ID
+  scannedQr   Boolean @default(false) // Was QR code scanned?
+
+  createdAt DateTime @default(now())
+
+  @@index([binInventoryId])
+  @@index([productId])
+  @@index([siteId])
+  @@index([fromShelfId])
+  @@index([toShelfId])
+  @@index([movementType])
+  @@index([createdAt])
+}
+
+enum BinMovementType {
+  PUTAWAY // Moving stock from receiving to shelf
+  PICK // Picking for order
+  REPLENISHMENT // Moving from bulk to picking location
+  RELOCATION // Moving between shelves
+  CYCLE_COUNT // Adjustment from cycle count
+  CONSOLIDATION // Combining partial bins
+  RETURN // Returning to shelf
+}
+
+// Cycle counting schedule and results
+model CycleCount {
+  id     String @id @default(cuid())
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  countNumber String @unique // "CC-2025-001"
+
+  // Scope
+  shelfId   String?
+  shelf     Shelf?         @relation(fields: [shelfId], references: [id])
+  aisleId   String?
+  aisle     Aisle?         @relation(fields: [aisleId], references: [id])
+  zoneId    String?
+  zone      WarehouseZone? @relation(fields: [zoneId], references: [id])
+  productId String?
+  product   Product?       @relation(fields: [productId], references: [id])
+
+  status CycleCountStatus @default(SCHEDULED)
+
+  // Schedule
+  scheduledDate DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  // Assignment
+  assignedTo String? // User ID
+  countedBy  String? // User ID who performed count
+  verifiedBy String? // Manager who verified
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CycleCountItem[]
+
+  @@index([siteId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([shelfId])
+}
+
+model CycleCountItem {
+  id           String     @id @default(cuid())
+  cycleCountId String
+  cycleCount   CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  binInventoryId String
+  binInventory   BinInventory @relation(fields: [binInventoryId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  shelfId   String
+  shelf     Shelf   @relation(fields: [shelfId], references: [id])
+
+  // Count results
+  systemQuantity  Decimal  @db.Decimal(10, 2) // What system says
+  countedQuantity Decimal? @db.Decimal(10, 2) // What was actually counted
+  variance        Decimal? @db.Decimal(10, 2) // Difference
+
+  // Status
+  status CycleCountItemStatus @default(PENDING)
+
+  // Notes
+  notes String?
+
+  countedAt DateTime?
+
+  @@index([cycleCountId])
+  @@index([binInventoryId])
+  @@index([productId])
+  @@index([shelfId])
+}
+
+enum CycleCountStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  CANCELLED
+}
+
+enum CycleCountItemStatus {
+  PENDING
+  COUNTED
+  VARIANCE_FOUND
+  ADJUSTED
+  VERIFIED
 }
