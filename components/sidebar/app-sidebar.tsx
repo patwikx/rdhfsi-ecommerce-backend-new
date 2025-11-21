@@ -13,7 +13,8 @@ import {
   Warehouse,
   TrendingUp,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  DollarSign
 } from "lucide-react"
 import {
   Sidebar,
@@ -79,69 +80,14 @@ const getNavigationItems = (
     },
   ]
 
-  // Customer-specific navigation
-  if (isCustomer) {
-    baseItems.push(
-      {
-        title: "Products",
-        url: "/products",
-        icon: Package,
-        items: [
-          {
-            title: "Browse Products",
-            url: "/products",
-          },
-          {
-            title: "Categories",
-            url: "/categories",
-          },
-          {
-            title: "Brands",
-            url: "/brands",
-          },
-        ],
-      },
-      {
-        title: "My Orders",
-        url: "/orders",
-        icon: ShoppingCart,
-        items: [
-          {
-            title: "Order History",
-            url: "/orders",
-          },
-          {
-            title: "Track Order",
-            url: "/orders/track",
-          },
-        ],
-      },
-      {
-        title: "Wishlist",
-        url: "/wishlist",
-        icon: TrendingUp,
-      },
-      {
-        title: "Quotes",
-        url: "/quotes",
-        icon: FileText,
-        items: [
-          {
-            title: "My Quotes",
-            url: "/quotes",
-          },
-          {
-            title: "Request Quote",
-            url: "/quotes/create",
-          },
-        ],
-      }
-    )
-  }
-
   // Admin/Staff navigation
   if (isAdmin) {
     baseItems.push(
+                 {
+        title: "Working Capital",
+        url: "/admin/working-cap",
+        icon: DollarSign,
+      },
       {
         title: "Products",
         url: "/admin/products",

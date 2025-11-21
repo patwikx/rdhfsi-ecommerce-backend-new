@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Mail, Lock, User, Building2, Phone } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Eye, EyeOff, Mail, Lock, User, Building2, Phone, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { register } from '@/app/actions/auth';
@@ -22,6 +23,7 @@ export default function RegisterPage() {
     companyName: '',
     password: '',
     confirmPassword: '',
+    userRole: 'CUSTOMER' as 'CUSTOMER' | 'CORPORATE' | 'ADMIN' | 'MANAGER' | 'STAFF',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,6 +153,33 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   required
                 />
+              </div>
+            </div>
+
+            {/* User Role */}
+            <div className="space-y-2">
+              <Label htmlFor="userRole">
+                User Role <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10 pointer-events-none" />
+                <Select 
+                  value={formData.userRole} 
+                  onValueChange={(value: 'CUSTOMER' | 'CORPORATE' | 'ADMIN' | 'MANAGER' | 'STAFF') => 
+                    setFormData({ ...formData, userRole: value })
+                  }
+                >
+                  <SelectTrigger className="pl-10">
+                    <SelectValue placeholder="Select user role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CUSTOMER">Customer</SelectItem>
+                    <SelectItem value="CORPORATE">Corporate</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
+                    <SelectItem value="STAFF">Staff</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
