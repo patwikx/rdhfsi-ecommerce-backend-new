@@ -8,7 +8,7 @@ import { Loader2, Package, MapPin, Camera, X } from 'lucide-react';
 import { getProductByQRCode } from '@/app/actions/product-actions';
 import { toast } from 'sonner';
 import Image from 'next/image';
-import { BrowserQRCodeReader } from '@zxing/browser';
+import { Html5Qrcode } from 'html5-qrcode';
 
 type ProductDetails = {
   id: string;
@@ -37,9 +37,7 @@ export function QRScanner() {
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     return () => {
@@ -72,114 +70,49 @@ export function QRScanner() {
   };
 
   const startCamera = async () => {
+    setIsCameraOpen(true);
+    setIsScanning(true);
+
+    // Wait for DOM to render
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        
-        if (protocol !== 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-          toast.error('Camera requires HTTPS. Please access via https://' + hostname, {
-            duration: 6000
-          });
-        } else {
-          toast.error('Camera not supported on this browser.', {
-            duration: 5000
-          });
-        }
-        return;
-      }
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      html5QrCodeRef.current = html5QrCode;
 
-      // Check if running on HTTPS (required for camera on mobile)
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        toast.error('Camera requires HTTPS. Please access the site via https://', {
-          duration: 6000
-        });
-        return;
-      }
-
-      setIsCameraOpen(true);
-      setIsScanning(true);
-
-      // Try with environment camera first (back camera on mobile)
-      // Use higher resolution for better QR detection
-      let constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
-        }
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
       };
 
-      let stream: MediaStream;
-      
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (err) {
-        // If environment camera fails, try with any camera
-        console.log('Environment camera failed, trying any camera:', err);
-        constraints = {
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 30 }
-          }
-        };
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      }
-
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        
-        // Wait for video to be ready
-        await new Promise<void>((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play().then(() => resolve());
-            };
-          }
-        });
-
-        const codeReader = new BrowserQRCodeReader();
-        
-        // Start continuous scanning with optimized settings
-        const controls = await codeReader.decodeFromVideoElement(
-          videoRef.current,
-          (result) => {
-            if (result) {
-              const text = result.getText();
-              stopCamera();
-              handleSearch(text);
-            }
-          }
-        );
-        
-        controlsRef.current = controls;
-      }
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        config,
+        (decodedText) => {
+          stopCamera();
+          handleSearch(decodedText);
+        },
+        (errorMessage) => {
+          // Ignore scanning errors (no QR code in frame)
+        }
+      );
     } catch (error) {
       console.error('Camera error:', error);
       
       let errorMessage = 'Failed to access camera';
       
       if (error instanceof Error) {
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        
-        if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
-          errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
-        } else if (error.name === 'NotFoundError' || error.message.includes('Requested device not found')) {
+        if (error.message.includes('NotAllowedError') || error.message.includes('Permission denied')) {
+          errorMessage = 'Camera permission denied. Please allow camera access.';
+        } else if (error.message.includes('NotFoundError')) {
           errorMessage = 'No camera found on this device';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Camera is already in use by another application';
-        } else if (error.name === 'OverconstrainedError') {
-          errorMessage = 'Camera does not meet requirements. Trying with basic settings...';
-        } else if (error.name === 'SecurityError') {
-          errorMessage = 'Camera access blocked. Please use HTTPS or localhost.';
+        } else if (error.message.includes('NotReadableError')) {
+          errorMessage = 'Camera is already in use';
+        } else if (error.message.includes('HTTPS')) {
+          errorMessage = 'Camera requires HTTPS. Please use https://';
         } else {
-          errorMessage = `Camera error: ${error.message}`;
+          errorMessage = error.message;
         }
       }
       
@@ -189,19 +122,14 @@ export function QRScanner() {
     }
   };
 
-  const stopCamera = () => {
-    if (controlsRef.current) {
-      controlsRef.current.stop();
-      controlsRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+  const stopCamera = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current = null;
+      } catch (error) {
+        console.error('Error stopping camera:', error);
+      }
     }
     
     setIsCameraOpen(false);
@@ -233,22 +161,8 @@ export function QRScanner() {
       </div>
 
       {isCameraOpen && (
-        <div className="border rounded-lg overflow-hidden bg-black">
-          <div className="relative">
-            <video
-              ref={videoRef}
-              className="w-full h-auto"
-              style={{ maxHeight: '400px' }}
-              playsInline
-              muted
-              autoPlay
-            />
-            {isScanning && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="border-4 border-primary rounded-lg w-64 h-64 animate-pulse" />
-              </div>
-            )}
-          </div>
+        <div className="border rounded-lg overflow-hidden">
+          <div id="qr-reader" className="w-full" />
           <div className="bg-muted p-3 text-center">
             <p className="text-sm text-muted-foreground">
               Position the QR code within the frame to scan
@@ -367,10 +281,15 @@ export function QRScanner() {
                         </div>
                         
                         {inventory.shelf ? (
-                          <div className="ml-6 font-mono text-sm bg-muted/50 rounded px-3 py-2 inline-block">
-                            <span className="text-muted-foreground">Aisle:</span> <span className="font-semibold">{inventory.shelf.aisle.code}</span>
-                            <span className="text-muted-foreground mx-2">•</span>
-                            <span className="text-muted-foreground">Shelf:</span> <span className="font-semibold">{inventory.shelf.code}</span>
+                          <div className="ml-6 flex gap-2">
+                            <div className="font-mono text-sm bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded px-3 py-2">
+                              <span className="text-muted-foreground text-xs">Aisle</span>
+                              <p className="font-bold text-blue-700 dark:text-blue-300">{inventory.shelf.aisle.code}</p>
+                            </div>
+                            <div className="font-mono text-sm bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded px-3 py-2">
+                              <span className="text-muted-foreground text-xs">Shelf</span>
+                              <p className="font-bold text-green-700 dark:text-green-300">{inventory.shelf.code}</p>
+                            </div>
                           </div>
                         ) : (
                           <p className="ml-6 text-sm text-muted-foreground italic">No location assigned</p>
