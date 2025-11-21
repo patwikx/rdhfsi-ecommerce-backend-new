@@ -43,9 +43,17 @@ export default function Page() {
   const itemsPerPage = 10
   
   // Create dateRange from startDate and endDate
+  // Normalize dates to avoid timezone issues
   const dateRange: DateRange | undefined = useMemo(() => {
     if (!startDate) return undefined
-    return { from: startDate, to: endDate }
+    
+    // Create new Date objects at noon local time to avoid timezone edge cases
+    const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 12, 0, 0)
+    const normalizedEnd = endDate 
+      ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 12, 0, 0)
+      : undefined
+    
+    return { from: normalizedStart, to: normalizedEnd }
   }, [startDate, endDate])
 
   // Load data only when date range is selected
