@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, Package, MapPin, Camera, X } from 'lucide-react';
+import { Loader2, Package, MapPin, Camera, X } from 'lucide-react';
 import { getProductByQRCode } from '@/app/actions/product-actions';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -33,16 +33,13 @@ type ProductDetails = {
 };
 
 export function QRScanner() {
-  const [searchValue, setSearchValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [showUploadOption, setShowUploadOption] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -50,11 +47,8 @@ export function QRScanner() {
     };
   }, []);
 
-  const handleSearch = async (value?: string) => {
-    const searchTerm = value || searchValue.trim();
-    
+  const handleSearch = async (searchTerm: string) => {
     if (!searchTerm) {
-      toast.error('Please enter a SKU or Barcode');
       return;
     }
 
@@ -86,15 +80,12 @@ export function QRScanner() {
         
         if (protocol !== 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
           toast.error('Camera requires HTTPS. Please access via https://' + hostname, {
-            duration: 6000,
-            description: 'Or use the "Upload QR Image" option below'
+            duration: 6000
           });
-          setShowUploadOption(true);
         } else {
-          toast.error('Camera not supported on this browser. Use the "Upload QR Image" option below.', {
+          toast.error('Camera not supported on this browser.', {
             duration: 5000
           });
-          setShowUploadOption(true);
         }
         return;
       }
@@ -102,10 +93,8 @@ export function QRScanner() {
       // Check if running on HTTPS (required for camera on mobile)
       if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         toast.error('Camera requires HTTPS. Please access the site via https://', {
-          duration: 6000,
-          description: 'Or use the "Upload QR Image" option below'
+          duration: 6000
         });
-        setShowUploadOption(true);
         return;
       }
 
@@ -113,11 +102,13 @@ export function QRScanner() {
       setIsScanning(true);
 
       // Try with environment camera first (back camera on mobile)
+      // Use higher resolution for better QR detection
       let constraints: MediaStreamConstraints = {
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
         }
       };
 
@@ -130,8 +121,9 @@ export function QRScanner() {
         console.log('Environment camera failed, trying any camera:', err);
         constraints = {
           video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 }
           }
         };
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -152,12 +144,13 @@ export function QRScanner() {
         });
 
         const codeReader = new BrowserQRCodeReader();
+        
+        // Start continuous scanning with optimized settings
         const controls = await codeReader.decodeFromVideoElement(
           videoRef.current,
           (result) => {
             if (result) {
               const text = result.getText();
-              setSearchValue(text);
               stopCamera();
               handleSearch(text);
             }
@@ -215,114 +208,28 @@ export function QRScanner() {
     setIsScanning(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setIsLoading(true);
-      const codeReader = new BrowserQRCodeReader();
-      const result = await codeReader.decodeFromImageUrl(URL.createObjectURL(file));
-      
-      if (result) {
-        const text = result.getText();
-        setSearchValue(text);
-        toast.success('QR code detected!');
-        handleSearch(text);
-      }
-    } catch (error) {
-      console.error('QR decode error:', error);
-      toast.error('Could not read QR code from image. Please try again.');
-    } finally {
-      setIsLoading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Enter SKU or Barcode..."
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="pl-9"
-              disabled={isLoading || isCameraOpen}
-            />
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={isCameraOpen ? stopCamera : startCamera}
-            disabled={isLoading}
-          >
-            {isCameraOpen ? (
-              <>
-                <X className="h-4 w-4 mr-2" />
-                Close Camera
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4 mr-2" />
-                Scan QR
-              </>
-            )}
-          </Button>
-          <Button onClick={() => handleSearch()} disabled={isLoading || !searchValue.trim() || isCameraOpen}>
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Searching...
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4 mr-2" />
-                Search
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Upload QR Image Option */}
-        <div className="flex items-center gap-2">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">OR</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-            disabled={isLoading}
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="w-full"
-          >
-            <Package className="h-4 w-4 mr-2" />
-            Upload QR Image
-          </Button>
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Take a photo of the QR code and upload it
-          </p>
-        </div>
+      <div className="flex justify-center">
+        <Button 
+          size="lg"
+          onClick={isCameraOpen ? stopCamera : startCamera}
+          disabled={isLoading}
+        >
+          {isCameraOpen ? (
+            <>
+              <X className="h-5 w-5 mr-2" />
+              Close Camera
+            </>
+          ) : (
+            <>
+              <Camera className="h-5 w-5 mr-2" />
+              Start Scanning
+            </>
+          )}
+        </Button>
       </div>
 
       {isCameraOpen && (
@@ -446,47 +353,41 @@ export function QRScanner() {
                 <p className="text-sm text-muted-foreground">No inventory available</p>
               </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Site</th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">Location</th>
-                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">Quantity</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {product.inventories.map((inventory) => (
-                      <tr key={inventory.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{inventory.site.name}</p>
-                              <p className="text-xs text-muted-foreground">{inventory.site.code}</p>
-                            </div>
+              <div className="space-y-3">
+                {product.inventories.map((inventory) => (
+                  <div key={inventory.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div>
+                            <p className="font-semibold text-foreground">{inventory.site.name}</p>
+                            <p className="text-xs text-muted-foreground">{inventory.site.code}</p>
                           </div>
-                        </td>
-                        <td className="p-3">
-                          {inventory.shelf ? (
-                            <div className="font-mono text-sm">
-                              <span className="text-muted-foreground">Aisle:</span> {inventory.shelf.aisle.code}
-                              <span className="text-muted-foreground mx-2">•</span>
-                              <span className="text-muted-foreground">Shelf:</span> {inventory.shelf.code}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">No location assigned</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right">
-                          <Badge variant={inventory.quantity > 10 ? 'default' : inventory.quantity > 0 ? 'secondary' : 'outline'}>
-                            {inventory.quantity} units
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        
+                        {inventory.shelf ? (
+                          <div className="ml-6 font-mono text-sm bg-muted/50 rounded px-3 py-2 inline-block">
+                            <span className="text-muted-foreground">Aisle:</span> <span className="font-semibold">{inventory.shelf.aisle.code}</span>
+                            <span className="text-muted-foreground mx-2">•</span>
+                            <span className="text-muted-foreground">Shelf:</span> <span className="font-semibold">{inventory.shelf.code}</span>
+                          </div>
+                        ) : (
+                          <p className="ml-6 text-sm text-muted-foreground italic">No location assigned</p>
+                        )}
+                      </div>
+                      
+                      <div className="flex-shrink-0">
+                        <Badge 
+                          variant={inventory.quantity > 10 ? 'default' : inventory.quantity > 0 ? 'secondary' : 'outline'}
+                          className="text-lg px-4 py-2"
+                        >
+                          {inventory.quantity} units
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
