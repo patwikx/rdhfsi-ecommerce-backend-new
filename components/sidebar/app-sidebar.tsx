@@ -14,7 +14,8 @@ import {
   TrendingUp,
   MessageSquare,
   BarChart3,
-  DollarSign
+  DollarSign,
+  UserCog
 } from "lucide-react"
 import {
   Sidebar,
@@ -152,6 +153,21 @@ const getNavigationItems = (
           {
             title: "Corporate",
             url: "/admin/customers?role=CORPORATE",
+          },
+        ],
+      },
+      {
+        title: "User Management",
+        url: "/admin/users",
+        icon: UserCog,
+        items: [
+          {
+            title: "All Users",
+            url: "/admin/users",
+          },
+          {
+            title: "Add User",
+            url: "/admin/users/new",
           },
         ],
       },

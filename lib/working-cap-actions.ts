@@ -46,13 +46,16 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
   let query: string
   let params: any[] = []
 
-  // Format dates for SQL Server - ensure we're using local dates, not UTC
-  const startDate = new Date(dateRange.from.getTime() - (dateRange.from.getTimezoneOffset() * 60000))
-    .toISOString().split('T')[0] // YYYY-MM-DD format
-  const endDate = dateRange.to 
-    ? new Date(dateRange.to.getTime() - (dateRange.to.getTimezoneOffset() * 60000))
-        .toISOString().split('T')[0]
-    : startDate
+  // Format dates for SQL Server - use local date parts to avoid timezone issues
+  const formatDateForSQL = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const startDate = formatDateForSQL(dateRange.from)
+  const endDate = dateRange.to ? formatDateForSQL(dateRange.to) : startDate
 
   console.log('Date filtering:', { 
     originalFrom: dateRange.from, 
