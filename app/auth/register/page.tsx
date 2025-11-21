@@ -44,6 +44,7 @@ export default function RegisterPage() {
         phone: formData.phone,
         companyName: formData.companyName,
         password: formData.password,
+        userRole: formData.userRole,
       });
 
       if (result.success) {

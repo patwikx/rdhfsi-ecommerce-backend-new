@@ -12,6 +12,7 @@ const registerSchema = z.object({
   phone: z.string().min(10, 'Phone number must be at least 10 characters'),
   companyName: z.string().min(2, 'Company name must be at least 2 characters'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  userRole: z.enum(['CUSTOMER', 'CORPORATE', 'ADMIN', 'MANAGER', 'STAFF']).optional(),
 });
 
 export async function authenticate(
@@ -46,6 +47,7 @@ export async function register(formData: {
   phone: string;
   companyName: string;
   password: string;
+  userRole?: 'CUSTOMER' | 'CORPORATE' | 'ADMIN' | 'MANAGER' | 'STAFF';
 }) {
   try {
     const validatedFields = registerSchema.safeParse(formData);
@@ -57,7 +59,7 @@ export async function register(formData: {
       };
     }
 
-    const { name, email, phone, companyName, password } = validatedFields.data;
+    const { name, email, phone, companyName, password, userRole } = validatedFields.data;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -82,7 +84,7 @@ export async function register(formData: {
         phone,
         companyName,
         password: hashedPassword,
-        role: 'CUSTOMER',
+        role: userRole || 'CUSTOMER',
       },
     });
 
