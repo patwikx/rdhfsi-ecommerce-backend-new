@@ -556,6 +556,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
   poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
+  markdownPrice: number | null;
   isActive: boolean;
   category: { name: string };
   brand: { name: string } | null;
@@ -563,7 +564,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
   inventories: {
     id: string;
     quantity: number;
-    site: { id: string; name: string; code: string };
+    site: { id: string; name: string; code: string; isMarkdown: boolean };
     shelf: { id: string; code: string; aisle: { code: string } } | null;
   }[];
   totalQuantity: number;
@@ -624,17 +625,22 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
       return { success: false, error: 'Product not found' };
     }
 
-    // Get inventories with site information
+    // Get inventories with site information - include specific sites: 007, 001, 026, 028
     const inventoriesData = await prisma.inventory.findMany({
       where: {
         productId: product.id,
         quantity: { gt: 0 },
+        site: {
+          code: {
+            in: ['007', '001', '026', '028']
+          }
+        }
       },
       include: {
         site: true,
       },
       orderBy: [
-        { site: { name: 'desc' } },
+        { site: { name: 'asc' } },
         { quantity: 'desc' },
       ],
     });
@@ -655,6 +661,10 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
       },
     });
 
+    // Get markdown price for site 026 (SANTIAGO - MARKDOWN SITE)
+    const markdownInventory = inventoriesData.find(inv => inv.site.code === '026');
+    const markdownPrice = markdownInventory ? Number(product.retailPrice) * 0.85 : null; // 15% discount for markdown
+
     // Transform inventories to match expected type
     const inventories = inventoriesData.map(inv => {
       // Find primary bin location for this site
@@ -672,6 +682,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
           id: inv.site.id,
           name: inv.site.name,
           code: inv.site.code,
+          isMarkdown: inv.site.isMarkdown,
         },
         shelf: binLocation && binLocation.shelf.aisle ? {
           id: binLocation.shelf.id,
@@ -698,6 +709,7 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
       poPrice: product.poPrice ? Number(product.poPrice) : null,
       costPrice: product.costPrice ? Number(product.costPrice) : null,
       compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+      markdownPrice,
       isActive: product.isActive,
       category: product.category,
       brand: product.brand,

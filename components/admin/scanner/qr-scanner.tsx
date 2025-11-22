@@ -22,6 +22,7 @@ type ProductDetails = {
   poPrice: number | null;
   costPrice: number | null;
   compareAtPrice: number | null;
+  markdownPrice: number | null;
   isActive: boolean;
   category: { name: string };
   brand: { name: string } | null;
@@ -29,7 +30,7 @@ type ProductDetails = {
   inventories: {
     id: string;
     quantity: number;
-    site: { id: string; name: string; code: string };
+    site: { id: string; name: string; code: string; isMarkdown: boolean };
     shelf: { id: string; code: string; aisle: { code: string } } | null;
   }[];
   totalQuantity: number;
@@ -327,6 +328,15 @@ export function QRScanner() {
                   <p className="text-2xl font-bold text-orange-600">
                     ₱{scanResult.data.costPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
+                </div>
+              )}
+              {scanResult.data.markdownPrice && (
+                <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-950">
+                  <p className="text-sm text-muted-foreground mb-1">Markdown Price (026)</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    ₱{scanResult.data.markdownPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">SANTIAGO - MARKDOWN SITE</p>
                 </div>
               )}
             </div>
