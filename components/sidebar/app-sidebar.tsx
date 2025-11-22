@@ -16,7 +16,9 @@ import {
   BarChart3,
   DollarSign,
   UserCog,
-  ScanLine
+  ScanLine,
+  ClipboardList,
+  CreditCard
 } from "lucide-react"
 import {
   Sidebar,
@@ -85,7 +87,17 @@ const getNavigationItems = (
   // Admin/Staff navigation
   if (isAdmin) {
     baseItems.push(
-                 {
+      {
+        title: "Order Taker",
+        url: "/staff/order-taker",
+        icon: ClipboardList,
+      },
+      {
+        title: "Cashier Queue",
+        url: "/cashier/queue",
+        icon: CreditCard,
+      },
+      {
         title: "Working Capital",
         url: "/admin/working-cap",
         icon: DollarSign,

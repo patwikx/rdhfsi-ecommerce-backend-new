@@ -39,18 +39,21 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts         Account[]
-  sessions         Session[]
-  orders           Order[]
-  cartItems        CartItem[]
-  addresses        Address[]
-  reviews          Review[]
-  wishlist         WishlistItem[]
-  quotes           Quote[]
-  customPricing    CustomerPricing[]
-  reorderTemplates ReorderTemplate[]
-  activityLogs     ActivityLog[]
-  notifications    Notification[]
+  accounts            Account[]
+  sessions            Session[]
+  orders              Order[]
+  salesmanOrders      Order[]               @relation("SalesmanOrders")
+  cartItems           CartItem[]
+  addresses           Address[]
+  reviews             Review[]
+  wishlist            WishlistItem[]
+  quotes              Quote[]
+  customPricing       CustomerPricing[]
+  reorderTemplates    ReorderTemplate[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
+  orderDrafts         OrderDraft[]
+  salesmanPerformance SalesmanPerformance[]
 }
 
 model Account {
@@ -143,6 +146,7 @@ model Site {
   binInventories BinInventory[]
   binMovements   BinMovement[]
   cycleCounts    CycleCount[]
+  orderDrafts    OrderDraft[]
 }
 
 enum SiteType {
@@ -277,6 +281,7 @@ model Product {
   binMovements         BinMovement[]
   cycleCounts          CycleCount[]
   cycleCountItems      CycleCountItem[]
+  orderDraftItems      OrderDraftItem[]
 
   @@index([categoryId])
   @@index([brandId])
@@ -438,6 +443,15 @@ model Order {
   poNumber String? // Purchase Order Number
   taxId    String? // Business tax ID
 
+  // Salesman/Order Taker tracking
+  salesmanId      String? // Staff member who took the order
+  salesman        User?       @relation("SalesmanOrders", fields: [salesmanId], references: [id])
+  orderSource     OrderSource @default(ONLINE)
+  sentToCashierAt DateTime? // When salesman sent to cashier
+  sentToCashierBy String? // Salesman who sent it
+  processedBy     String? // Cashier who processed payment
+  processedAt     DateTime? // When cashier processed it
+
   notes         String?
   internalNotes String? // Admin-only notes
 
@@ -454,7 +468,9 @@ model Order {
   taxBreakdown         OrderTaxBreakdown[]
 
   @@index([userId])
+  @@index([salesmanId])
   @@index([status])
+  @@index([orderSource])
   @@index([createdAt])
 }
 
@@ -624,6 +640,108 @@ enum QuoteStatus {
 }
 
 // ============================================
+// ORDER TAKER / POS SYSTEM
+// ============================================
+
+// Order drafts for salesman order-taking workflow
+model OrderDraft {
+  id          String @id @default(cuid())
+  draftNumber String @unique
+
+  salesmanId String
+  salesman   User   @relation(fields: [salesmanId], references: [id])
+
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  // Customer info (optional for walk-in)
+  customerName  String?
+  customerPhone String?
+  customerEmail String?
+
+  // Draft status
+  status DraftStatus @default(IN_PROGRESS)
+
+  // Totals (calculated)
+  subtotal    Decimal @default(0) @db.Decimal(10, 2)
+  totalAmount Decimal @default(0) @db.Decimal(10, 2)
+
+  notes String?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  sentToCashierAt    DateTime? // When sent to cashier
+  convertedToOrderId String? // If converted to actual order
+
+  items OrderDraftItem[]
+
+  @@index([salesmanId])
+  @@index([siteId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderDraftItem {
+  id      String     @id @default(cuid())
+  draftId String
+  draft   OrderDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  notes String? // Special instructions
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([draftId])
+  @@index([productId])
+}
+
+enum DraftStatus {
+  IN_PROGRESS // Salesman still adding items
+  SENT_TO_CASHIER // Waiting at cashier
+  COMPLETED // Converted to order
+  CANCELLED // Cancelled by salesman
+}
+
+// Sales performance tracking for salesmen
+model SalesmanPerformance {
+  id         String @id @default(cuid())
+  salesmanId String
+  salesman   User   @relation(fields: [salesmanId], references: [id])
+
+  // Period
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // Metrics
+  totalOrders  Int     @default(0)
+  totalRevenue Decimal @default(0) @db.Decimal(12, 2)
+  totalItems   Int     @default(0)
+
+  // Average metrics
+  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
+
+  // Commission (if applicable)
+  commissionRate   Decimal?  @db.Decimal(5, 2) // Percentage
+  commissionEarned Decimal?  @db.Decimal(10, 2)
+  commissionPaid   Boolean   @default(false)
+  commissionPaidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([salesmanId, periodStart, periodEnd])
+  @@index([salesmanId])
+  @@index([periodStart, periodEnd])
+}
+
+// ============================================
 // REORDER TEMPLATES (Quick Reorder)
 // ============================================
 model ReorderTemplate {
@@ -685,6 +803,13 @@ enum FulfillmentStatus {
   PARTIALLY_FULFILLED
   FULFILLED
   CANCELLED
+}
+
+enum OrderSource {
+  ONLINE // E-commerce website
+  WALK_IN // In-store with salesman
+  PHONE // Phone order
+  WHOLESALE // Wholesale/corporate order
 }
 
 // ============================================
