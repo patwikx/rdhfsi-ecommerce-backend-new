@@ -251,7 +251,7 @@ async function syncSingleItem(
   }
 
   // 3. Upsert Product
-  const product = await upsertProduct(item, category.id);
+  const product = await upsertProduct(item, category.id, site.shouldEnableOnSale);
   if (product.created) {
     stats.productsCreated++;
   } else {
@@ -272,20 +272,33 @@ async function ensureSite(siteCode: string, siteName: string) {
     where: { code: siteCode }
   });
 
+  // Only site 026 (SANTIAGO - MARKDOWN SITE) should enable isOnSale
+  const shouldEnableOnSale = siteCode === '026';
+
   if (existing) {
-    return { id: existing.id, existed: true };
+    return { id: existing.id, existed: true, isMarkdown: existing.isMarkdown, shouldEnableOnSale };
+  }
+
+  // Determine if this is a markdown site based on name
+  const isMarkdownSite = siteName.toUpperCase().includes('MARKDOWN');
+  
+  // Determine site type based on code and name
+  let siteType: 'WAREHOUSE' | 'STORE' = 'STORE';
+  if (siteCode === '001' || siteName.toUpperCase().includes('WAREHOUSE')) {
+    siteType = 'WAREHOUSE';
   }
 
   const newSite = await prisma.site.create({
     data: {
       code: siteCode,
       name: siteName,
-      type: 'STORE',
+      type: siteType,
+      isMarkdown: isMarkdownSite,
       isActive: true
     }
   });
 
-  return { id: newSite.id, existed: false };
+  return { id: newSite.id, existed: false, isMarkdown: isMarkdownSite, shouldEnableOnSale };
 }
 
 async function ensureCategory(categoryName: string) {
@@ -311,7 +324,7 @@ async function ensureCategory(categoryName: string) {
   return { id: newCategory.id, existed: false };
 }
 
-async function upsertProduct(item: LegacyInventoryItem, categoryId: string) {
+async function upsertProduct(item: LegacyInventoryItem, categoryId: string, shouldEnableOnSale: boolean) {
   const slug = `${item.barcode}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.substring(0, 100);
 
   const existing = await prisma.product.findUnique({
@@ -329,6 +342,7 @@ async function upsertProduct(item: LegacyInventoryItem, categoryId: string) {
         baseUom: item.baseUnitCode,
         categoryId,
         legacyProductCode: item.productCode,
+        isOnSale: shouldEnableOnSale ? true : existing.isOnSale,
         lastSyncedAt: new Date()
       }
     });
@@ -349,7 +363,8 @@ async function upsertProduct(item: LegacyInventoryItem, categoryId: string) {
       categoryId,
       legacyProductCode: item.productCode,
       isActive: true,
-      isPublished: true
+      isPublished: true,
+      isOnSale: shouldEnableOnSale
     }
   });
 

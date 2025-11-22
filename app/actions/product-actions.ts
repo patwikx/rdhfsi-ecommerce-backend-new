@@ -19,6 +19,7 @@ export async function getAllProducts(filters?: {
   brandId?: string;
   isActive?: boolean;
   search?: string;
+  siteId?: string;
 }): Promise<ActionResult<{
   id: string;
   sku: string;
@@ -31,6 +32,7 @@ export async function getAllProducts(filters?: {
   brand: { name: string } | null;
   images: { url: string; sortOrder: number }[];
   _count: { inventories: number };
+  inventory?: { quantity: number; availableQty: number } | null;
 }[]>> {
   const session = await auth();
   
@@ -66,7 +68,15 @@ export async function getAllProducts(filters?: {
     }
 
     const productsData = await prisma.product.findMany({
-      where,
+      where: filters?.siteId ? {
+        ...where,
+        inventories: {
+          some: {
+            siteId: filters.siteId,
+            availableQty: { gt: 0 }
+          }
+        }
+      } : where,
       include: {
         category: {
           select: { name: true },
@@ -79,6 +89,14 @@ export async function getAllProducts(filters?: {
           orderBy: { sortOrder: 'desc' },
           take: 1,
         },
+        inventories: filters?.siteId ? {
+          where: { siteId: filters.siteId },
+          select: {
+            quantity: true,
+            availableQty: true,
+          },
+          take: 1,
+        } : false,
         _count: {
           select: { inventories: true },
         },
@@ -97,6 +115,12 @@ export async function getAllProducts(filters?: {
       bulkPrice: product.bulkPrice ? Number(product.bulkPrice) : null,
       weight: product.weight ? Number(product.weight) : null,
       averageRating: product.averageRating ? Number(product.averageRating) : null,
+      inventory: 'inventories' in product && Array.isArray(product.inventories) && product.inventories.length > 0
+        ? {
+            quantity: Number(product.inventories[0].quantity),
+            availableQty: Number(product.inventories[0].availableQty),
+          }
+        : null,
     }));
 
     return { success: true, data: products };

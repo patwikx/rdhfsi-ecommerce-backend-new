@@ -30,7 +30,7 @@ type CategoryWithChildren = {
 /**
  * Get all categories (flat list)
  */
-export async function getAllCategories(): Promise<ActionResult<{
+export async function getAllCategories(siteId?: string): Promise<ActionResult<{
   id: string;
   name: string;
   slug: string;
@@ -45,6 +45,7 @@ export async function getAllCategories(): Promise<ActionResult<{
   updatedAt: Date;
   parent: { name: string } | null;
   _count: { children: number; products: number };
+  siteProductCount?: number;
 }[]>> {
   const session = await auth();
   
@@ -65,7 +66,16 @@ export async function getAllCategories(): Promise<ActionResult<{
         _count: {
           select: {
             children: true,
-            products: true,
+            products: siteId ? {
+              where: {
+                inventories: {
+                  some: {
+                    siteId,
+                    availableQty: { gt: 0 }
+                  }
+                }
+              }
+            } : true,
           },
         },
       },
@@ -75,7 +85,13 @@ export async function getAllCategories(): Promise<ActionResult<{
       ],
     });
 
-    return { success: true, data: categories };
+    // If siteId is provided, add site-specific product count
+    const categoriesWithSiteCount = categories.map(category => ({
+      ...category,
+      siteProductCount: siteId ? category._count.products : undefined,
+    }));
+
+    return { success: true, data: categoriesWithSiteCount };
   } catch (error) {
     console.error('Error fetching categories:', error);
     return { success: false, error: 'Failed to fetch categories' };

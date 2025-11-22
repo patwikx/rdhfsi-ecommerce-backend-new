@@ -12,9 +12,14 @@ export const metadata = {
   description: 'Manage stock transfers between sites',
 };
 
-async function getTransfers() {
+async function getTransfers(siteId?: string) {
   const transfersData = await prisma.inventoryMovement.findMany({
     where: {
+      ...(siteId && {
+        inventory: {
+          siteId,
+        },
+      }),
       OR: [
         { movementType: 'TRANSFER_IN' },
         { movementType: 'TRANSFER_OUT' },
@@ -133,7 +138,7 @@ async function getInventoryForTransfer() {
 export default async function StockTransferPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; siteId?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -143,7 +148,7 @@ export default async function StockTransferPage({
   }
 
   const [transfers, sites, inventory] = await Promise.all([
-    getTransfers(),
+    getTransfers(params.siteId),
     getSites(),
     getInventoryForTransfer(),
   ]);

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 
 import { useSiteModal } from "@/hooks/use-site-modal"
-import { useActiveSite } from "@/hooks/use-active-site"
+import { useSite } from "@/components/context/site-context"
 import type { SiteItem } from "@/types/site-types"
 
 interface SiteSwitcherProps {
@@ -56,7 +56,7 @@ export default function SiteSwitcher({
   userRole,
 }: SiteSwitcherProps) {
   const siteModal = useSiteModal()
-  const activeSite = useActiveSite()
+  const { siteId, setSiteId } = useSite()
   const router = useRouter()
   const { isMobile } = useSidebar()
   const [open, setOpen] = React.useState<boolean>(false)
@@ -65,23 +65,16 @@ export default function SiteSwitcher({
   const canSwitchSites = ['ADMIN', 'MANAGER', 'STAFF'].includes(userRole || '')
   const isSwitcherActive = items.length > 1 && canSwitchSites
   
-  // Get current site from active site hook or default to first item
-  const currentSiteId = activeSite.id || items[0]?.id
+  // Get current site from context or default to first item
+  const currentSiteId = siteId || items[0]?.id
   const currentSite = items.find((item) => item.id === currentSiteId) || items[0]
-
-  // Set initial active site
-  React.useEffect(() => {
-    if (!activeSite.id && items.length > 0) {
-      activeSite.set(items[0].id)
-    }
-  }, [activeSite, items])
 
   const onSiteSelect = React.useCallback((selectedSiteId: string) => {
     setOpen(false)
-    activeSite.set(selectedSiteId)
-    // Optionally refresh the page or update URL
+    setSiteId(selectedSiteId)
+    // Refresh the page to update data
     router.refresh()
-  }, [activeSite, router])
+  }, [setSiteId, router])
 
   const handleAddSite = React.useCallback(() => {
     setOpen(false)

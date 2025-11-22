@@ -26,6 +26,7 @@ import {
 import { getShelves, getSites, deleteShelf } from '@/app/actions/shelf-actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { useCurrentSite } from '@/hooks/use-current-site'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,18 +76,27 @@ type Site = {
 
 export default function ShelvesPage() {
   const router = useRouter()
+  const { siteId } = useCurrentSite()
   const [shelves, setShelves] = useState<Shelf[]>([])
   const [sites, setSites] = useState<Site[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [siteFilter, setSiteFilter] = useState<string>('all')
+  const [siteFilter, setSiteFilter] = useState<string>('current')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null)
 
   const fetchShelves = async () => {
     try {
+      // Determine which site to filter by
+      let filterSiteId: string | undefined
+      if (siteFilter === 'current') {
+        filterSiteId = siteId || undefined
+      } else if (siteFilter !== 'all') {
+        filterSiteId = siteFilter
+      }
+
       const result = await getShelves({
-        siteId: siteFilter !== 'all' ? siteFilter : undefined,
+        siteId: filterSiteId,
         isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
         search: searchQuery || undefined,
       })
@@ -113,8 +123,10 @@ export default function ShelvesPage() {
   }
 
   useEffect(() => {
-    fetchShelves()
-  }, [siteFilter, statusFilter, searchQuery])
+    if (siteId || siteFilter !== 'current') {
+      fetchShelves()
+    }
+  }, [siteFilter, statusFilter, searchQuery, siteId])
 
   useEffect(() => {
     fetchSites()
@@ -213,6 +225,7 @@ export default function ShelvesPage() {
             <SelectValue placeholder="Filter by site" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="current">Current Site</SelectItem>
             <SelectItem value="all">All Sites</SelectItem>
             {sites.map((site) => (
               <SelectItem key={site.id} value={site.id}>

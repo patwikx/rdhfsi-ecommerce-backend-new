@@ -10,9 +10,10 @@ export const metadata = {
   description: 'Monitor and manage low stock items',
 };
 
-async function getLowStockInventory() {
+async function getLowStockInventory(siteId?: string) {
   const inventoryData = await prisma.inventory.findMany({
     where: {
+      ...(siteId && { siteId }),
       OR: [
         {
           AND: [
@@ -93,7 +94,7 @@ export default async function LowStockPage({
   }
 
   const [inventory, sites] = await Promise.all([
-    getLowStockInventory(),
+    getLowStockInventory(params.siteId),
     getSites(),
   ]);
 

@@ -22,7 +22,10 @@ const STORAGE_KEY = 'inventory_sync_history';
 
 export default function InventorySyncPage() {
   const [sites] = useState<Site[]>([
-    { code: '007', name: 'Santiago Branch' }
+    { code: '007', name: 'Santiago Branch' },
+    { code: '026', name: 'SANTIAGO - MARKDOWN SITE' },
+    { code: '001', name: 'Main Warehouse' },
+    { code: '028', name: 'M-Warehouse - MARKDOWN SITE' }
   ]);
   
   const [selectedSite, setSelectedSite] = useState<string>('007');
@@ -202,7 +205,7 @@ export default function InventorySyncPage() {
               Syncing regular items only (excludes consignment products)
             </p>
           </div>
-          <Badge>Site: 007</Badge>
+          <Badge>Multiple Sites Available</Badge>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
