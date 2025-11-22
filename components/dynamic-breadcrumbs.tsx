@@ -73,6 +73,16 @@ const routeConfig: Record<string, { label: string; icon?: React.ComponentType<{ 
   'admin/inventory/shelves': { label: 'Shelf Management', icon: Package },
   'admin/sites': { label: 'Sites', icon: Building2 },
   'admin/working-cap': { label: 'Working Capital', icon: Calculator },
+  'admin/quotes': { label: 'Quotes', icon: FileText },
+  'admin/scanner': { label: 'Scanner', icon: Package },
+  
+  // Staff routes
+  'staff': { label: 'Staff', icon: UserCog, isClickable: false },
+  'staff/order-taker': { label: 'Order Taker', icon: ClipboardCheck },
+  
+  // Cashier routes
+  'cashier': { label: 'Cashier', icon: Calculator, isClickable: false },
+  'cashier/queue': { label: 'Cashier Queue', icon: Clock },
   
   // Leave Management
   'leave-requests': { label: 'Leave Requests', icon: Calendar },

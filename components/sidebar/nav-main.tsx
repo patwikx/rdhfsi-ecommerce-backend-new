@@ -40,9 +40,10 @@ interface NavMainItem {
 
 interface NavMainProps {
   items: NavMainItem[]
+  label?: string
 }
 
-export function NavMain({ items }: NavMainProps) {
+export function NavMain({ items, label = "Navigation" }: NavMainProps) {
   const pathname = usePathname()
 
   // Check if current item or any of its subitems is active
@@ -57,8 +58,10 @@ export function NavMain({ items }: NavMainProps) {
   }, [pathname])
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+    <SidebarGroup className="py-0">
+      <SidebarGroupLabel className="px-2 py-1.5 text-xs font-semibold text-sidebar-foreground/70">
+        {label}
+      </SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const itemIsActive = isItemActive(item)

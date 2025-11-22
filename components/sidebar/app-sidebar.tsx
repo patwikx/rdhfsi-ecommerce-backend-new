@@ -62,250 +62,271 @@ type NavItem = {
   items?: NavSubItem[]
 }
 
-// Define navigation items based on e-commerce system
-const getNavigationItems = (
+// Type for navigation sections
+type NavSection = {
+  label: string
+  items: NavItem[]
+}
+
+// Define navigation sections based on e-commerce system
+const getNavigationSections = (
   userRole: string,
   pendingCounts?: {
     orders?: number
     quotes?: number
     lowStock?: number
   }
-): NavItem[] => {
+): NavSection[] => {
   const isAdmin = ['ADMIN', 'MANAGER', 'STAFF'].includes(userRole)
-  const isCustomer = userRole === 'CUSTOMER' || userRole === 'CORPORATE'
 
-  // Base items for all users
-  const baseItems: NavItem[] = [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
-  ]
+  const sections: NavSection[] = []
+
+  // Main Section
+  sections.push({
+    label: "Main",
+    items: [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+        isActive: true,
+      },
+    ]
+  })
 
   // Admin/Staff navigation
   if (isAdmin) {
-    baseItems.push(
-      {
-        title: "Order Taker",
-        url: "/staff/order-taker",
-        icon: ClipboardList,
-      },
-      {
-        title: "Cashier Queue",
-        url: "/cashier/queue",
-        icon: CreditCard,
-      },
-      {
-        title: "Working Capital",
-        url: "/admin/working-cap",
-        icon: DollarSign,
-      },
-      {
-        title: "Products",
-        url: "/admin/products",
-        icon: Package,
-        items: [
-          {
-            title: "All Products",
-            url: "/admin/products",
-          },
-          {
-            title: "Add Product",
-            url: "/admin/products/create",
-          },
-          {
-            title: "Categories",
-            url: "/admin/categories",
-          },
-          {
-            title: "Brands",
-            url: "/admin/brands",
-          },
-        ],
-      },
-      {
-        title: "Scanner",
-        url: "/admin/scanner",
-        icon: ScanLine,
-      },
-      {
-        title: "Orders",
-        url: "/admin/orders",
-        icon: ShoppingCart,
-        badge: pendingCounts?.orders,
-        items: [
-          {
-            title: "All Orders",
-            url: "/admin/orders",
-          },
-          {
-            title: "Pending",
-            url: "/admin/orders?status=PENDING",
-            badge: pendingCounts?.orders,
-          },
-          {
-            title: "Processing",
-            url: "/admin/orders?status=PROCESSING",
-          },
-          {
-            title: "Shipped",
-            url: "/admin/orders?status=SHIPPED",
-          },
-        ],
-      },
-      {
-        title: "Customers",
-        url: "/admin/customers",
-        icon: Users,
-        items: [
-          {
-            title: "All Customers",
-            url: "/admin/customers",
-          },
-          {
-            title: "Retail",
-            url: "/admin/customers?role=CUSTOMER",
-          },
-          {
-            title: "Corporate",
-            url: "/admin/customers?role=CORPORATE",
-          },
-        ],
-      },
-      {
-        title: "User Management",
-        url: "/admin/users",
-        icon: UserCog,
-        items: [
-          {
-            title: "All Users",
-            url: "/admin/users",
-          },
-          {
-            title: "Add User",
-            url: "/admin/users/new",
-          },
-        ],
-      },
-      {
-        title: "Marketing",
-        url: "/admin/marketing",
-        icon: Tag,
-        items: [
-          {
-            title: "Discounts",
-            url: "/admin/marketing/discounts",
-          },
-          {
-            title: "Coupons",
-            url: "/admin/marketing/coupons",
-          },
-          {
-            title: "Banners",
-            url: "/admin/marketing/banners",
-          },
-        ],
-      },
-      {
-        title: "Inventory",
-        url: "/admin/inventory",
-        icon: Warehouse,
-        badge: pendingCounts?.lowStock,
-        badgeVariant: "destructive",
-        items: [
-          {
-            title: "Sync to Barter",
-            url: "/admin/inventory/sync",
-          },
-          {
-            title: "Stock Levels",
-            url: "/admin/inventory",
-          },
-          {
-            title: "Low Stock Alert",
-            url: "/admin/inventory/low-stock",
-            badge: pendingCounts?.lowStock,
-            badgeVariant: "destructive",
-          },
-          {
-            title: "Stock Transfer",
-            url: "/admin/inventory/transfer",
-          },
-          {
-            title: "Shelf Management",
-            url: "/admin/inventory/shelves",
-          },
-          {
-            title: "Sites",
-            url: "/admin/sites",
-          },
-        ],
-      },
-      {
-        title: "Quotes",
-        url: "/admin/quotes",
-        icon: FileText,
-        badge: pendingCounts?.quotes,
-        items: [
-          {
-            title: "All Quotes",
-            url: "/admin/quotes",
-          },
-          {
-            title: "Pending",
-            url: "/admin/quotes?status=PENDING",
-            badge: pendingCounts?.quotes,
-          },
-          {
-            title: "Quoted",
-            url: "/admin/quotes?status=QUOTED",
-          },
-          {
-            title: "Accepted",
-            url: "/admin/quotes?status=ACCEPTED",
-          },
-        ],
-      },
-      {
-        title: "Reviews",
-        url: "/admin/reviews",
-        icon: MessageSquare,
-      },
-      {
-        title: "Reports",
-        url: "/admin/reports",
-        icon: BarChart3,
-        items: [
-          {
-            title: "Sales Report",
-            url: "/admin/reports/sales",
-          },
-          {
-            title: "Product Analytics",
-            url: "/admin/reports/products",
-          },
-          {
-            title: "Customer Analytics",
-            url: "/admin/reports/customers",
-          },
-        ],
-      }
-    )
+    // Operations Section
+    sections.push({
+      label: "Operations",
+      items: [
+        {
+          title: "Order Taker",
+          url: "/staff/order-taker",
+          icon: ClipboardList,
+        },
+        {
+          title: "Cashier Queue",
+          url: "/cashier/queue",
+          icon: CreditCard,
+        },
+        {
+          title: "Working Capital",
+          url: "/admin/working-cap",
+          icon: DollarSign,
+        },
+        {
+          title: "Scanner",
+          url: "/admin/scanner",
+          icon: ScanLine,
+        },
+        {
+          title: "Orders",
+          url: "/admin/orders",
+          icon: ShoppingCart,
+          badge: pendingCounts?.orders,
+          items: [
+            {
+              title: "All Orders",
+              url: "/admin/orders",
+            },
+            {
+              title: "Pending",
+              url: "/admin/orders?status=PENDING",
+              badge: pendingCounts?.orders,
+            },
+            {
+              title: "Processing",
+              url: "/admin/orders?status=PROCESSING",
+            },
+            {
+              title: "Shipped",
+              url: "/admin/orders?status=SHIPPED",
+            },
+          ],
+        },
+        {
+          title: "Quotes",
+          url: "/admin/quotes",
+          icon: FileText,
+          badge: pendingCounts?.quotes,
+          items: [
+            {
+              title: "All Quotes",
+              url: "/admin/quotes",
+            },
+            {
+              title: "Pending",
+              url: "/admin/quotes?status=PENDING",
+              badge: pendingCounts?.quotes,
+            },
+            {
+              title: "Quoted",
+              url: "/admin/quotes?status=QUOTED",
+            },
+            {
+              title: "Accepted",
+              url: "/admin/quotes?status=ACCEPTED",
+            },
+          ],
+        },
+        {
+          title: "Products",
+          url: "/admin/products",
+          icon: Package,
+          items: [
+            {
+              title: "All Products",
+              url: "/admin/products",
+            },
+            {
+              title: "Add Product",
+              url: "/admin/products/create",
+            },
+            {
+              title: "Categories",
+              url: "/admin/categories",
+            },
+            {
+              title: "Brands",
+              url: "/admin/brands",
+            },
+          ],
+        },
+        {
+          title: "Inventory",
+          url: "/admin/inventory",
+          icon: Warehouse,
+          badge: pendingCounts?.lowStock,
+          badgeVariant: "destructive",
+          items: [
+            {
+              title: "Sync to Barter",
+              url: "/admin/inventory/sync",
+            },
+            {
+              title: "Stock Levels",
+              url: "/admin/inventory",
+            },
+            {
+              title: "Low Stock Alert",
+              url: "/admin/inventory/low-stock",
+              badge: pendingCounts?.lowStock,
+              badgeVariant: "destructive",
+            },
+            {
+              title: "Stock Transfer",
+              url: "/admin/inventory/transfer",
+            },
+            {
+              title: "Shelf Management",
+              url: "/admin/inventory/shelves",
+            },
+            {
+              title: "Sites",
+              url: "/admin/sites",
+            },
+          ],
+        },
+      ]
+    })
+
+    // Management Section
+    sections.push({
+      label: "Management",
+      items: [
+        {
+          title: "Customers",
+          url: "/admin/customers",
+          icon: Users,
+          items: [
+            {
+              title: "All Customers",
+              url: "/admin/customers",
+            },
+            {
+              title: "Retail",
+              url: "/admin/customers?role=CUSTOMER",
+            },
+            {
+              title: "Corporate",
+              url: "/admin/customers?role=CORPORATE",
+            },
+          ],
+        },
+        {
+          title: "User Management",
+          url: "/admin/users",
+          icon: UserCog,
+          items: [
+            {
+              title: "All Users",
+              url: "/admin/users",
+            },
+            {
+              title: "Add User",
+              url: "/admin/users/new",
+            },
+          ],
+        },
+        {
+          title: "Marketing",
+          url: "/admin/marketing",
+          icon: Tag,
+          items: [
+            {
+              title: "Discounts",
+              url: "/admin/marketing/discounts",
+            },
+            {
+              title: "Coupons",
+              url: "/admin/marketing/coupons",
+            },
+            {
+              title: "Banners",
+              url: "/admin/marketing/banners",
+            },
+          ],
+        },
+        {
+          title: "Reviews",
+          url: "/admin/reviews",
+          icon: MessageSquare,
+        },
+        {
+          title: "Reports",
+          url: "/admin/reports",
+          icon: BarChart3,
+          items: [
+            {
+              title: "Sales Report",
+              url: "/admin/reports/sales",
+            },
+            {
+              title: "Product Analytics",
+              url: "/admin/reports/products",
+            },
+            {
+              title: "Customer Analytics",
+              url: "/admin/reports/customers",
+            },
+          ],
+        },
+      ]
+    })
   }
 
-  // Settings for all users
-  baseItems.push({
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-    items: [
-      {
-        title: "Profile",
-        url: "/settings/profile",
-      },
-      ...(isAdmin ? [
+  // Add Settings to Management section if admin, otherwise create separate section
+  if (isAdmin) {
+    sections[sections.length - 1].items.push({
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
+      items: [
+        {
+          title: "Profile",
+          url: "/settings/profile",
+        },
         {
           title: "System Settings",
           url: "/admin/settings",
@@ -314,11 +335,28 @@ const getNavigationItems = (
           title: "Tax Rates",
           url: "/admin/settings/tax",
         }
-      ] : []),
-    ],
-  })
+      ],
+    })
+  } else {
+    sections.push({
+      label: "Settings",
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: Settings,
+          items: [
+            {
+              title: "Profile",
+              url: "/settings/profile",
+            },
+          ],
+        },
+      ]
+    })
+  }
 
-  return baseItems
+  return sections
 }
 
 export function AppSidebar({ 
@@ -327,8 +365,8 @@ export function AppSidebar({
   pendingCounts,
   ...props 
 }: AppSidebarProps) {
-  const navItems = React.useMemo(() => 
-    getNavigationItems(
+  const navSections = React.useMemo(() => 
+    getNavigationSections(
       session.user.role,
       pendingCounts
     ),
@@ -362,7 +400,9 @@ export function AppSidebar({
         )}
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        {navSections.map((section) => (
+          <NavMain key={section.label} items={section.items} label={section.label} />
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
