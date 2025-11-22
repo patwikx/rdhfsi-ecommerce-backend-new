@@ -143,7 +143,7 @@ export default function Page() {
       
       // Payment type filter
       const matchesPaymentType = paymentTypeFilter === 'all' || 
-        ('PaymentType' in item && item.PaymentType === paymentTypeFilter)
+        ('Payment Type' in item && item['Payment Type'] === paymentTypeFilter)
       
       // Search filter
       const matchesSearch = searchQuery === '' || Object.values(item).some(value => 
@@ -177,8 +177,8 @@ export default function Page() {
           return value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         }
         
-        // Truncate Description and CustomerName fields
-        if ((key === 'Description' || key === 'CustomerName') && typeof value === 'string') {
+        // Truncate Name and Party Name fields
+        if ((key === 'Name' || key === 'Party Name') && typeof value === 'string') {
           const maxLength = 30
           if (value.length > maxLength) {
             return (
@@ -205,8 +205,8 @@ export default function Page() {
     return filteredData.reduce((sum, item) => {
       let amount = 0
       
-      if (dataType === 'invoices' && 'Total Amount' in item) {
-        amount = item['Total Amount']
+      if (dataType === 'invoices' && 'Amount Paid' in item) {
+        amount = item['Amount Paid']
       } else if (dataType === 'inventory' && 'Total Gross' in item) {
         amount = item['Total Gross']
       }
@@ -246,7 +246,7 @@ export default function Page() {
   // Get unique payment types from all data
   const uniquePaymentTypes = useMemo(() => {
     const paymentTypes = allData
-      .map(item => 'PaymentType' in item ? item.PaymentType : '')
+      .map(item => 'Payment Type' in item ? item['Payment Type'] : '')
       .filter(Boolean)
       .filter((paymentType): paymentType is string => typeof paymentType === 'string')
     
@@ -440,25 +440,28 @@ export default function Page() {
         </div>
       )}
       
-      {/* Data loaded and filtered */}
+      {/* Search box and total - show when data is loaded */}
+      {!isLoading && !error && allData.length > 0 && (
+        <div className="flex justify-between items-center mb-2">
+          <Input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[300px]"
+          />
+          <div className="font-bold">
+            Total Amount: {totalAmount.toLocaleString('en-PH', { 
+              style: 'currency', 
+              currency: 'PHP' 
+            })}
+          </div>
+        </div>
+      )}
+      
+      {/* Data table - only show when filtered data exists */}
       {!isLoading && !error && filteredData.length > 0 && (
         <>
-          <div className="flex justify-between items-center mb-2">
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-[300px]"
-            />
-            <div className="font-bold">
-              Total Amount: {totalAmount.toLocaleString('en-PH', { 
-                style: 'currency', 
-                currency: 'PHP' 
-              })}
-            </div>
-          </div>
-          
           <DataTable columns={columns} data={paginatedData} />
           
           <Pagination>

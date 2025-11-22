@@ -4,20 +4,16 @@ import { executeQuery } from '@/lib/working-cap/db'
 import { DateRange } from 'react-day-picker'
 
 export type InvoiceItem = {
-  'Transaction ID': string
-  BarCode: string
-  Description: string
-  'Retail Price': number
+  Barcode: string
+  Name: string
   Quantity: number
-  'Total Amount': number
-  'Invoice Date': string // String format MM-dd-yyyy from SQL FORMAT function
-  SupplierName: string
-  Branch: string
-  Remarks: string
-  CustomerName: string
-  'PO #': string
-  'SI #': string
-  PaymentType: string
+  'Amount Paid': number
+  'Party Name': string
+  Remark: string
+  'Invoice Date': string
+  'PO#': string
+  'SI#': string
+  'Payment Type': string
   Category: string
 }
 
@@ -65,48 +61,36 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
   })
 
   if (dataType === 'invoices') {
-    // Updated query with date range filtering - using CAST to ensure date comparison works
+    // Updated query with date range filtering
     query = `
-      SELECT
-        c.barCode AS BarCode,
-        c.name AS Description,
-        b.retail_price as 'Retail Price',
-        b.actual_quantity as 'Quantity',
-        b.subtotal as 'Total Amount',
-        FORMAT(a.invoice_date, 'MM-dd-yyyy') as 'Invoice Date',
-        'NEW' as 'Remarks',
-        ISNULL(a.party_name, '') as 'CustomerName',
-        ISNULL(j.reference_code, '') as 'PO #',
-        ISNULL(a.receipt_no, '') as 'SI #',
-        j.payment_type_code as 'PaymentType',
-        ISNULL(x.name, 'Uncategorized') as 'Category'
-      FROM [dbo].invoices a WITH (NOLOCK)
-        INNER JOIN [dbo].invoice_lines b WITH (NOLOCK) ON a.id = b.invoice_id
-        INNER JOIN [dbo].product c WITH (NOLOCK) ON b.product_code = c.productCode
-        INNER JOIN [dbo].sites d WITH (NOLOCK) ON a.site_code = d.site_code
-        INNER JOIN [dbo].invoice_payments j WITH (NOLOCK) ON b.invoice_id = j.invoice_id
-        LEFT JOIN [dbo].Supplier e WITH (NOLOCK) ON c.supplierId = e.supplierId
-        LEFT JOIN [dbo].Category x WITH (NOLOCK) ON c.departmentId = x.categoryCode
+      SELECT 
+        a.barcode AS Barcode, 
+        a.name AS Name, 
+        b.quantity AS Quantity, 
+        c.amountPaid AS 'Amount Paid', 
+        d.party_name AS 'Party Name', 
+        CAST(b.remark AS VARCHAR(MAX)) AS Remark, 
+        FORMAT(d.invoice_date, 'MM-dd-yyyy') AS 'Invoice Date', 
+        f.reference_code AS 'PO#', 
+        d.receipt_no AS 'SI#', 
+        f.payment_type_code AS 'Payment Type', 
+        g.name AS Category 
+      FROM dbo.Product AS a WITH (NOLOCK)
+        LEFT JOIN dbo.POSDocDetail AS b WITH (NOLOCK) ON a.productCode = b.productCode
+        LEFT JOIN dbo.POSDocHeader AS c WITH (NOLOCK) ON b.inventoryDocId = c.inventoryDocId
+        LEFT JOIN dbo.invoices AS d WITH (NOLOCK) ON b.inventoryDocId = d.document_no
+        LEFT JOIN dbo.invoice_payments AS f WITH (NOLOCK) ON b.inventoryDocId = f.invoice_id
+        LEFT JOIN dbo.Category AS g WITH (NOLOCK) ON a.departmentId = g.categoryId
       WHERE 
-        CAST(a.invoice_date AS DATE) >= CAST(@param0 AS DATE)
-        AND CAST(a.invoice_date AS DATE) <= CAST(@param1 AS DATE)
-        AND a.type_code = 'POS'
-        AND b.actual_quantity > 0
-        AND b.subtotal > 0
-        AND c.isConcession = '0'
-        AND j.payment_type_code NOT IN ('EXCH', 'EWT')
-        AND EXISTS (
-          SELECT 1 FROM [dbo].POSDocDetail h WITH (NOLOCK)
-          WHERE h.productCode = b.product_code 
-          AND CAST(h.remark AS VARCHAR(MAX)) = 'NEW'
-        )
-      GROUP BY 
-        a.transaction_id, c.barCode, c.name, b.retail_price, b.actual_quantity,
-        b.subtotal, a.invoice_date, e.name, d.name, a.party_name, 
-        j.reference_code, a.receipt_no, j.payment_type_code, x.name
+        c.typeCode = 'POS'
+        AND c.siteCode = '007'
+        AND a.isConcession = '0'
+        AND CAST(b.remark AS VARCHAR(MAX)) = 'NEW'
+        AND f.payment_type_code NOT IN ('EXCHANGE', 'EWT')
+        AND CAST(d.invoice_date AS DATE) >= CAST(@param0 AS DATE)
+        AND CAST(d.invoice_date AS DATE) <= CAST(@param1 AS DATE)
       ORDER BY 
-        a.invoice_date DESC, 
-        a.transaction_id DESC
+        d.invoice_date ASC
     `
     params.push(startDate, endDate)
   } else {
@@ -165,14 +149,14 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
       const cleanedData = invoiceData.filter(item => {
         // Filter out records with invalid data
         const hasValidDate = item['Invoice Date'] && item['Invoice Date'] !== 'null'
-        const hasValidAmount = typeof item['Total Amount'] === 'number' && !isNaN(item['Total Amount'])
+        const hasValidAmount = typeof item['Amount Paid'] === 'number' && !isNaN(item['Amount Paid'])
         const hasValidQuantity = typeof item.Quantity === 'number' && item.Quantity > 0
         
         if (!hasValidDate) {
-          console.warn('Filtered out invoice record with invalid date:', item['Transaction ID'])
+          console.warn('Filtered out invoice record with invalid date:', item.Barcode)
         }
         if (!hasValidAmount) {
-          console.warn('Filtered out invoice record with invalid amount:', item['Transaction ID'])
+          console.warn('Filtered out invoice record with invalid amount:', item.Barcode)
         }
         
         return hasValidDate && hasValidAmount && hasValidQuantity
@@ -217,17 +201,6 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
 }
 
 // Helper function to validate date strings
-function isValidDateString(dateStr: string): boolean {
-  if (!dateStr || dateStr === 'null') return false
-  
-  // Check MM-dd-yyyy format
-  const dateRegex = /^\d{2}-\d{2}-\d{4}$/
-  if (!dateRegex.test(dateStr)) return false
-  
-  // Try to parse the date
-  const date = new Date(dateStr)
-  return !isNaN(date.getTime())
-}
 
 // Helper function to get unique values for filters - now requires date range
 export async function getFilterOptions(dataType: DataType, dateRange?: DateRange | null): Promise<{
@@ -243,7 +216,7 @@ export async function getFilterOptions(dataType: DataType, dateRange?: DateRange
     if (dataType === 'invoices') {
       const invoiceData = data as InvoiceItem[]
       categories = [...new Set(invoiceData.map(item => item.Category).filter(Boolean))]
-      paymentTypes = [...new Set(invoiceData.map(item => item.PaymentType).filter(Boolean))]
+      paymentTypes = [...new Set(invoiceData.map(item => item['Payment Type']).filter(Boolean))]
     }
     
     return {
@@ -281,7 +254,7 @@ export async function getDataSummary(dataType: DataType, dateRange?: DateRange |
     
     if (dataType === 'invoices') {
       const invoiceData = data as InvoiceItem[]
-      totalAmount = invoiceData.reduce((sum, item) => sum + (item['Total Amount'] || 0), 0)
+      totalAmount = invoiceData.reduce((sum, item) => sum + (item['Amount Paid'] || 0), 0)
       dates = invoiceData
         .map(item => new Date(item['Invoice Date']))
         .filter(date => !isNaN(date.getTime()))
