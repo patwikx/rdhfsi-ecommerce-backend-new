@@ -210,6 +210,134 @@ export async function getShelfById(shelfId: string) {
   }
 }
 
+// Get shelf by QR code scan
+export async function getShelfByQRCode(qrData: string) {
+  try {
+    await checkAuthorization()
+
+    // Try to parse as JSON (new format)
+    let shelfId: string | null = null
+    
+    try {
+      const parsed = JSON.parse(qrData)
+      if (parsed.type === 'SHELF' && parsed.shelfId) {
+        shelfId = parsed.shelfId
+      }
+    } catch {
+      // Not JSON, might be old format or direct shelf ID
+      shelfId = qrData
+    }
+
+    if (!shelfId) {
+      return {
+        success: false,
+        error: 'Invalid shelf QR code',
+      }
+    }
+
+    // Get shelf with all products
+    const shelf = await prisma.shelf.findUnique({
+      where: { id: shelfId },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        aisle: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        binInventories: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                barcode: true,
+                retailPrice: true,
+                category: {
+                  select: {
+                    name: true,
+                  },
+                },
+                brand: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            product: {
+              name: 'asc',
+            },
+          },
+        },
+        _count: {
+          select: {
+            binInventories: true,
+          },
+        },
+      },
+    })
+
+    if (!shelf) {
+      return {
+        success: false,
+        error: 'Shelf not found',
+      }
+    }
+
+    // Serialize Decimal types for client
+    const serializedShelf = {
+      id: shelf.id,
+      code: shelf.code,
+      name: shelf.name,
+      description: shelf.description,
+      level: shelf.level,
+      position: shelf.position,
+      isActive: shelf.isActive,
+      isAccessible: shelf.isAccessible,
+      site: shelf.site,
+      aisle: shelf.aisle,
+      products: shelf.binInventories.map(bin => ({
+        id: bin.id,
+        productId: bin.product.id,
+        sku: bin.product.sku,
+        barcode: bin.product.barcode,
+        name: bin.product.name,
+        category: bin.product.category.name,
+        brand: bin.product.brand?.name || null,
+        retailPrice: parseFloat(bin.product.retailPrice.toString()),
+        quantity: bin.quantity.toString(),
+        reservedQty: bin.reservedQty.toString(),
+        availableQty: bin.availableQty.toString(),
+        isPrimary: bin.isPrimary,
+      })),
+      totalProducts: shelf._count.binInventories,
+    }
+
+    return {
+      success: true,
+      data: serializedShelf,
+    }
+  } catch (error) {
+    console.error('Get shelf by QR code error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch shelf',
+    }
+  }
+}
+
 // Create new shelf
 export async function createShelf(formData: z.infer<typeof createShelfSchema>) {
   try {

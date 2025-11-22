@@ -16,9 +16,9 @@ export default async function ScannerPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Product Scanner</h1>
+        <h1 className="text-3xl font-bold text-foreground">QR Code Scanner</h1>
         <p className="text-muted-foreground">
-          Scan product QR codes or enter SKU/Barcode to view details
+          Scan product or shelf QR codes to view details and inventory
         </p>
       </div>
 
