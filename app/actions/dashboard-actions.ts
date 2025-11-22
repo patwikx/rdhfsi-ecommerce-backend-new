@@ -120,14 +120,15 @@ export async function getSalesChartData(days: number = 30) {
       },
     });
 
-    // Group by date
+    // Group by date (use local date to avoid timezone issues)
     const salesByDate = new Map<string, { sales: number; orders: number }>();
 
     orders.forEach((order) => {
-      const dateKey = order.createdAt.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      });
+      // Format as YYYY-MM-DD using local date parts (not UTC)
+      const year = order.createdAt.getFullYear();
+      const month = String(order.createdAt.getMonth() + 1).padStart(2, '0');
+      const day = String(order.createdAt.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`;
       
       const existing = salesByDate.get(dateKey) || { sales: 0, orders: 0 };
       salesByDate.set(dateKey, {
@@ -136,12 +137,14 @@ export async function getSalesChartData(days: number = 30) {
       });
     });
 
-    // Convert to array
-    const chartData = Array.from(salesByDate.entries()).map(([date, data]) => ({
-      date,
-      sales: data.sales,
-      orders: data.orders,
-    }));
+    // Convert to array and sort by date
+    const chartData = Array.from(salesByDate.entries())
+      .map(([date, data]) => ({
+        date,
+        sales: data.sales,
+        orders: data.orders,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return { success: true, data: chartData };
   } catch (error) {

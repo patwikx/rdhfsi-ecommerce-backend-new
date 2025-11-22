@@ -168,7 +168,11 @@ export function SalesChart() {
                 tickMargin={8}
                 minTickGap={32}
                 tickFormatter={(value: string) => {
-                  const date = new Date(value);
+                  // Parse ISO date string (YYYY-MM-DD)
+                  const date = new Date(value + 'T00:00:00');
+                  if (isNaN(date.getTime())) {
+                    return value;
+                  }
                   return date.toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -180,7 +184,12 @@ export function SalesChart() {
                 content={
                   <ChartTooltipContent
                     labelFormatter={(value) => {
-                      return new Date(value).toLocaleDateString('en-US', {
+                      // Parse ISO date string (YYYY-MM-DD)
+                      const date = new Date(value + 'T00:00:00');
+                      if (isNaN(date.getTime())) {
+                        return String(value);
+                      }
+                      return date.toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
