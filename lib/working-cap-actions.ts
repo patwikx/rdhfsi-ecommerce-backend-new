@@ -67,7 +67,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         a.barcode AS Barcode, 
         a.name AS Name, 
         b.quantity AS Quantity, 
-        c.amountPaid AS 'Amount Paid', 
+        b.subTotal AS 'Amount Paid', 
         d.party_name AS 'Party Name', 
         CAST(b.remark AS VARCHAR(MAX)) AS Remark, 
         FORMAT(d.invoice_date, 'MM-dd-yyyy') AS 'Invoice Date', 
