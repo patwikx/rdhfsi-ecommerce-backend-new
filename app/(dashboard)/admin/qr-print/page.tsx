@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { QrCode, Printer, Search, Package, Warehouse, Loader2 } from 'lucide-react'
+import { QrCode, Printer, Search, Package, Warehouse, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAllProducts } from '@/app/actions/product-actions'
 import { getShelves } from '@/app/actions/shelf-actions'
@@ -53,6 +53,8 @@ export default function QRPrintPage() {
   const [selectedShelves, setSelectedShelves] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   useEffect(() => {
     loadData()
@@ -275,6 +277,26 @@ export default function QRPrintPage() {
     s.site.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Pagination
+  const totalPages = activeTab === 'products' 
+    ? Math.ceil(filteredProducts.length / itemsPerPage)
+    : Math.ceil(filteredShelves.length / itemsPerPage)
+
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const paginatedShelves = filteredShelves.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  // Reset to page 1 when search changes or tab changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, activeTab])
+
   const selectedCount = activeTab === 'products' ? selectedProducts.length : selectedShelves.length
 
   return (
@@ -379,7 +401,7 @@ export default function QRPrintPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.map((product) => (
+                  {paginatedProducts.map((product) => (
                     <TableRow 
                       key={product.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -409,6 +431,35 @@ export default function QRPrintPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredProducts.length > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} products
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>
@@ -456,7 +507,7 @@ export default function QRPrintPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredShelves.map((shelf) => (
+                  {paginatedShelves.map((shelf) => (
                     <TableRow 
                       key={shelf.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -487,6 +538,35 @@ export default function QRPrintPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredShelves.length > 0 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredShelves.length)} of {filteredShelves.length} shelves
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>

@@ -18,7 +18,8 @@ import {
   UserCog,
   ScanLine,
   ClipboardList,
-  CreditCard
+  CreditCard,
+  QrCode
 } from "lucide-react"
 import {
   Sidebar,
@@ -119,6 +120,11 @@ const getNavigationSections = (
           title: "Scanner",
           url: "/admin/scanner",
           icon: ScanLine,
+        },
+        {
+          title: "QR Print",
+          url: "/admin/qr-print",
+          icon: QrCode,
         },
         {
           title: "Orders",
