@@ -11,7 +11,7 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createShelf, getSites } from '@/app/actions/shelf-actions'
 import { toast } from 'sonner'
-import { useActiveSite } from '@/hooks/use-active-site'
+import { useCurrentSite } from '@/hooks/use-current-site'
 import { AisleSelector } from '@/components/admin/inventory/aisle-selector'
 
 type Site = {
@@ -30,7 +30,7 @@ type Aisle = {
 
 export default function NewShelfPage() {
   const router = useRouter()
-  const activeSite = useActiveSite()
+  const { siteId } = useCurrentSite()
   const [isLoading, setIsLoading] = useState(false)
   const [sites, setSites] = useState<Site[]>([])
   const [currentSiteName, setCurrentSiteName] = useState<string>('')
@@ -55,24 +55,18 @@ export default function NewShelfPage() {
       if (result.success && result.data) {
         setSites(result.data)
         
-        // Set the active site from site switcher, or use first site as fallback
-        const activeSiteId = activeSite.id || result.data[0]?.id
-        if (activeSiteId) {
-          const site = result.data.find(s => s.id === activeSiteId)
+        // Set the active site from site context
+        if (siteId) {
+          const site = result.data.find(s => s.id === siteId)
           if (site) {
-            setFormData(prev => ({ ...prev, siteId: activeSiteId }))
+            setFormData(prev => ({ ...prev, siteId: siteId }))
             setCurrentSiteName(site.name)
-            
-            // If no active site was set, set it now
-            if (!activeSite.id && result.data[0]) {
-              activeSite.set(result.data[0].id)
-            }
           }
         }
       }
     }
     fetchSites()
-  }, [activeSite])
+  }, [siteId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
