@@ -56,7 +56,7 @@ export default function SiteSwitcher({
   userRole,
 }: SiteSwitcherProps) {
   const siteModal = useSiteModal()
-  const { siteId, setSiteId } = useSite()
+  const { siteId, setSiteId, isSwitching } = useSite()
   const router = useRouter()
   const { isMobile } = useSidebar()
   const [open, setOpen] = React.useState<boolean>(false)
@@ -72,8 +72,10 @@ export default function SiteSwitcher({
   const onSiteSelect = React.useCallback((selectedSiteId: string) => {
     setOpen(false)
     setSiteId(selectedSiteId)
-    // Refresh the page to update data
-    router.refresh()
+    // Refresh the page to update data after a short delay
+    setTimeout(() => {
+      router.refresh()
+    }, 100)
   }, [setSiteId, router])
 
   const handleAddSite = React.useCallback(() => {

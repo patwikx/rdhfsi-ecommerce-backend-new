@@ -41,12 +41,15 @@ import {
   Trash2,
   Edit,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
-import { getShelfById, regenerateQRCode, updateShelf, getAvailableProductsForShelf, addProductToShelf, removeProductFromShelf } from '@/app/actions/shelf-actions'
+import { getShelfById, regenerateQRCode, updateShelf, getAvailableProductsForShelf, addProductToShelf, removeProductFromShelf, importProductsToShelf } from '@/app/actions/shelf-actions'
 import { toast } from 'sonner'
 import { AisleSelector } from '@/components/admin/inventory/aisle-selector'
+import { CSVImportDialog } from '@/components/admin/inventory/csv-import-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import Image from 'next/image'
 import {
   Table,
@@ -144,6 +147,8 @@ export default function ShelfDetailPage() {
     productName: string
     sku: string
   } | null>(null)
+  const [csvImportOpen, setCsvImportOpen] = useState(false)
+  const [selectedBins, setSelectedBins] = useState<string[]>([])
   
   // Form data for editing
   const [formData, setFormData] = useState({
@@ -295,6 +300,80 @@ export default function ShelfDetailPage() {
   const openRemoveDialog = (binId: string, productName: string, sku: string) => {
     setBinToRemove({ id: binId, productName, sku })
     setRemoveDialogOpen(true)
+  }
+
+  const handleCSVImport = async (items: Array<{ barcode: string; quantity: number }>) => {
+    return await importProductsToShelf({
+      shelfId,
+      items,
+    })
+  }
+
+  const handleImportComplete = () => {
+    fetchShelf()
+    fetchAvailableProducts()
+  }
+
+  const handleSelectBin = (binId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedBins(prev => [...prev, binId])
+    } else {
+      setSelectedBins(prev => prev.filter(id => id !== binId))
+    }
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedBins(shelfData?.binInventories.map(bin => bin.id) || [])
+    } else {
+      setSelectedBins([])
+    }
+  }
+
+  const handleExportInventoryCSV = () => {
+    if (!shelfData) return
+
+    try {
+      // Create CSV header
+      const headers = [
+        'Barcode',
+        'Product Name',
+        'Quantity',
+        'Reserved',
+        'Available',
+      ]
+
+      // Create CSV rows
+      const rows = shelfData.binInventories.map(bin => [
+        bin.product.barcode,
+        `"${bin.product.name.replace(/"/g, '""')}"`, // Escape quotes
+        parseFloat(bin.quantity.toString()).toFixed(2),
+        parseFloat(bin.reservedQty.toString()).toFixed(2),
+        parseFloat(bin.availableQty.toString()).toFixed(2),
+      ])
+
+      // Combine header and rows
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n')
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `shelf-${shelfData.code}-inventory-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Exported ${shelfData.binInventories.length} items to CSV`)
+    } catch (error) {
+      toast.error('Failed to export CSV')
+      console.error('Export error:', error)
+    }
   }
 
   const handleRegenerateQR = async () => {
@@ -690,6 +769,31 @@ export default function ShelfDetailPage() {
                     <h3 className="text-lg font-semibold">Current Inventory</h3>
                     <p className="text-sm text-muted-foreground">Products stored on this shelf</p>
                   </div>
+                  <div className="flex gap-2">
+                    {shelfData.binInventories.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportInventoryCSV}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export CSV
+                      </Button>
+                    )}
+                    {selectedBins.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          // Handle bulk delete
+                          toast.info('Bulk delete coming soon')
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove Selected ({selectedBins.length})
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {shelfData.binInventories.length === 0 ? (
@@ -703,30 +807,34 @@ export default function ShelfDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>SKU</TableHead>
-                          <TableHead>Product Name</TableHead>
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedBins.length === shelfData.binInventories.length}
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
                           <TableHead>Barcode</TableHead>
+                          <TableHead>Product Name</TableHead>
                           <TableHead className="text-right">Quantity</TableHead>
                           <TableHead className="text-right">Reserved</TableHead>
                           <TableHead className="text-right">Available</TableHead>
-                          <TableHead>Primary</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {shelfData.binInventories.map((bin) => (
                           <TableRow key={bin.id}>
-                            <TableCell className="font-medium">{bin.product.sku}</TableCell>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedBins.includes(bin.id)}
+                                onCheckedChange={(checked) => handleSelectBin(bin.id, checked as boolean)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{bin.product.barcode}</TableCell>
                             <TableCell>{bin.product.name}</TableCell>
-                            <TableCell>{bin.product.barcode}</TableCell>
                             <TableCell className="text-right">{parseFloat(bin.quantity.toString()).toFixed(2)}</TableCell>
                             <TableCell className="text-right">{parseFloat(bin.reservedQty.toString()).toFixed(2)}</TableCell>
                             <TableCell className="text-right">{parseFloat(bin.availableQty.toString()).toFixed(2)}</TableCell>
-                            <TableCell>
-                              {bin.isPrimary && (
-                                <Badge variant="default">Primary</Badge>
-                              )}
-                            </TableCell>
                             <TableCell className="text-right">
                               <Button 
                                 variant="ghost" 
@@ -749,8 +857,19 @@ export default function ShelfDetailPage() {
             <TabsContent value="add">
               <div className="border rounded-lg p-6">
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Add Products to Shelf</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Search and add products from site inventory</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Add Products to Shelf</h3>
+                      <p className="text-sm text-muted-foreground">Search and add products from site inventory</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCsvImportOpen(true)}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Import CSV
+                    </Button>
+                  </div>
                   
                   <div className="relative">
                     <Input
@@ -947,6 +1066,14 @@ export default function ShelfDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* CSV Import Dialog */}
+      <CSVImportDialog
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        onImport={handleCSVImport}
+        onComplete={handleImportComplete}
+      />
     </div>
   )
 }

@@ -23,6 +23,7 @@ export async function getAllProducts(filters?: {
 }): Promise<ActionResult<{
   id: string;
   sku: string;
+  barcode: string;
   name: string;
   slug: string;
   retailPrice: number;
@@ -31,6 +32,7 @@ export async function getAllProducts(filters?: {
   category: { name: string };
   brand: { name: string } | null;
   images: { url: string; sortOrder: number }[];
+  qrCodeImage: string | null;
   _count: { inventories: number };
   inventory?: { quantity: number; availableQty: number } | null;
 }[]>> {
@@ -105,23 +107,31 @@ export async function getAllProducts(filters?: {
     });
 
     // Convert Decimal fields to numbers for client components
-    const products = productsData.map(product => ({
-      ...product,
-      retailPrice: Number(product.retailPrice),
-      wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : null,
-      poPrice: product.poPrice ? Number(product.poPrice) : null,
-      costPrice: product.costPrice ? Number(product.costPrice) : null,
-      compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
-      bulkPrice: product.bulkPrice ? Number(product.bulkPrice) : null,
-      weight: product.weight ? Number(product.weight) : null,
-      averageRating: product.averageRating ? Number(product.averageRating) : null,
-      inventory: 'inventories' in product && Array.isArray(product.inventories) && product.inventories.length > 0
-        ? {
-            quantity: Number(product.inventories[0].quantity),
-            availableQty: Number(product.inventories[0].availableQty),
-          }
-        : null,
-    }));
+    const products = productsData.map(product => {
+      const { inventories, ...productData } = product
+      
+      return {
+        id: productData.id,
+        sku: productData.sku,
+        barcode: productData.barcode,
+        name: productData.name,
+        slug: productData.slug,
+        retailPrice: Number(productData.retailPrice),
+        isActive: productData.isActive,
+        isFeatured: productData.isFeatured,
+        category: productData.category,
+        brand: productData.brand,
+        images: productData.images,
+        qrCodeImage: productData.qrCodeImage,
+        _count: productData._count,
+        inventory: Array.isArray(inventories) && inventories.length > 0
+          ? {
+              quantity: Number(inventories[0].quantity),
+              availableQty: Number(inventories[0].availableQty),
+            }
+          : null,
+      }
+    });
 
     return { success: true, data: products };
   } catch (error) {
@@ -636,8 +646,18 @@ export async function getProductByQRCode(qrData: string): Promise<ActionResult<{
           }
         }
       },
-      include: {
-        site: true,
+      select: {
+        id: true,
+        siteId: true,
+        quantity: true,
+        site: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            isMarkdown: true,
+          }
+        },
       },
       orderBy: [
         { site: { name: 'asc' } },

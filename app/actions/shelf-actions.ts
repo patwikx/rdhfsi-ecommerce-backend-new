@@ -1045,6 +1045,226 @@ export async function removeProductFromShelf(binInventoryId: string) {
   }
 }
 
+// Import products to shelf from CSV
+export async function importProductsToShelf(data: {
+  shelfId: string
+  items: Array<{ barcode: string; quantity: number }>
+}) {
+  try {
+    const { userId } = await checkAuthorization()
+
+    if (!data.shelfId || !data.items || data.items.length === 0) {
+      return {
+        success: false,
+        error: 'Invalid import data',
+      }
+    }
+
+    // Get shelf info
+    const shelf = await prisma.shelf.findUnique({
+      where: { id: data.shelfId },
+      select: { 
+        id: true, 
+        code: true, 
+        siteId: true,
+        site: { select: { name: true } }
+      },
+    })
+
+    if (!shelf) {
+      return {
+        success: false,
+        error: 'Shelf not found',
+      }
+    }
+
+    const results: Array<{
+      barcode: string
+      quantity: number
+      status: 'success' | 'error' | 'warning'
+      message: string
+      productName?: string
+      availableQty?: number
+      requestedQty?: number
+    }> = []
+
+    // Process each item
+    for (const item of data.items) {
+      try {
+        // Find product by barcode
+        const product = await prisma.product.findFirst({
+          where: { barcode: item.barcode },
+          select: { 
+            id: true, 
+            name: true, 
+            sku: true, 
+            barcode: true 
+          },
+        })
+
+        if (!product) {
+          results.push({
+            barcode: item.barcode,
+            quantity: item.quantity,
+            status: 'error',
+            message: 'Product not found',
+          })
+          continue
+        }
+
+        // Get inventory for this product at this site
+        const inventory = await prisma.inventory.findFirst({
+          where: {
+            siteId: shelf.siteId,
+            productId: product.id,
+          },
+        })
+
+        if (!inventory) {
+          results.push({
+            barcode: item.barcode,
+            quantity: item.quantity,
+            status: 'error',
+            message: 'Product not available at this site',
+            productName: product.name,
+          })
+          continue
+        }
+
+        // Calculate available quantity (site available - already on shelves)
+        const siteAvailable = parseFloat(inventory.availableQty.toString())
+        
+        const shelfAssignments = await prisma.binInventory.aggregate({
+          where: {
+            siteId: shelf.siteId,
+            productId: product.id,
+          },
+          _sum: {
+            quantity: true,
+          },
+        })
+
+        const onShelves = parseFloat(shelfAssignments._sum.quantity?.toString() || '0')
+        const unassigned = siteAvailable - onShelves
+
+        // Check if requested quantity exceeds available
+        if (item.quantity > unassigned) {
+          results.push({
+            barcode: item.barcode,
+            quantity: item.quantity,
+            status: 'warning',
+            message: `Quantity exceeds available. Available: ${unassigned.toFixed(2)}, Requested: ${item.quantity}`,
+            productName: product.name,
+            availableQty: unassigned,
+            requestedQty: item.quantity,
+          })
+          continue
+        }
+
+        // Check if product already exists on this shelf
+        const existingBin = await prisma.binInventory.findFirst({
+          where: {
+            shelfId: data.shelfId,
+            productId: product.id,
+          },
+        })
+
+        if (existingBin) {
+          // Update existing bin inventory
+          const currentQty = parseFloat(existingBin.quantity.toString())
+          const currentAvailableQty = parseFloat(existingBin.availableQty.toString())
+          const newQty = currentQty + item.quantity
+          const newAvailableQty = currentAvailableQty + item.quantity
+
+          await prisma.binInventory.update({
+            where: { id: existingBin.id },
+            data: {
+              quantity: newQty.toString(),
+              availableQty: newAvailableQty.toString(),
+            },
+          })
+
+          results.push({
+            barcode: item.barcode,
+            quantity: item.quantity,
+            status: 'success',
+            message: `Added ${item.quantity} to existing shelf location`,
+            productName: product.name,
+          })
+        } else {
+          // Create new bin inventory
+          await prisma.binInventory.create({
+            data: {
+              siteId: shelf.siteId,
+              shelfId: data.shelfId,
+              productId: product.id,
+              quantity: item.quantity.toString(),
+              reservedQty: '0',
+              availableQty: item.quantity.toString(),
+              isPrimary: false,
+            },
+          })
+
+          results.push({
+            barcode: item.barcode,
+            quantity: item.quantity,
+            status: 'success',
+            message: `Added to shelf successfully`,
+            productName: product.name,
+          })
+        }
+      } catch (error) {
+        results.push({
+          barcode: item.barcode,
+          quantity: item.quantity,
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Failed to process item',
+        })
+      }
+    }
+
+    // Log activity
+    const successCount = results.filter(r => r.status === 'success').length
+    const errorCount = results.filter(r => r.status === 'error').length
+    const warningCount = results.filter(r => r.status === 'warning').length
+
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: 'IMPORT_PRODUCTS_TO_SHELF',
+        description: `Imported ${successCount} products to shelf ${shelf.code} (${errorCount} errors, ${warningCount} warnings)`,
+        metadata: {
+          shelfId: shelf.id,
+          totalItems: data.items.length,
+          successCount,
+          errorCount,
+          warningCount,
+        },
+      },
+    })
+
+    revalidatePath(`/admin/inventory/shelves/${data.shelfId}`)
+
+    return {
+      success: true,
+      data: results,
+      summary: {
+        total: data.items.length,
+        success: successCount,
+        errors: errorCount,
+        warnings: warningCount,
+      },
+      message: `Import completed: ${successCount} successful, ${errorCount} errors, ${warningCount} warnings`,
+    }
+  } catch (error) {
+    console.error('Import products to shelf error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to import products',
+    }
+  }
+}
+
 // Create new aisle
 export async function createAisle(data: {
   siteId: string

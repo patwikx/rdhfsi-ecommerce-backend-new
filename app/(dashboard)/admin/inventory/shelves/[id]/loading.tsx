@@ -5,42 +5,27 @@ export default function ShelfDetailLoading() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Skeleton className="h-10 w-10 rounded" />
         <div className="flex-1">
           <Skeleton className="h-9 w-48 mb-2" />
           <Skeleton className="h-4 w-64" />
         </div>
         <div className="flex gap-2">
-          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-16" />
+          <Skeleton className="h-6 w-16" />
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        {/* QR Code Card */}
-        <div className="border rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="w-24 h-24 rounded" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-6 w-20" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-8 w-24 rounded" />
-              <Skeleton className="h-8 w-24 rounded" />
-            </div>
-          </div>
-        </div>
-
-        {/* Other Stats */}
-        {[...Array(3)].map((_, i) => (
+        {[...Array(4)].map((_, i) => (
           <div key={i} className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-4 rounded" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-24 h-24 rounded" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-6 w-40" />
+              </div>
             </div>
-            <Skeleton className="h-8 w-16 mb-1" />
-            <Skeleton className="h-3 w-24" />
           </div>
         ))}
       </div>
@@ -52,12 +37,12 @@ export default function ShelfDetailLoading() {
           <div className="border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-8 w-16 rounded" />
+              <Skeleton className="h-8 w-16" />
             </div>
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-3 w-20" />
+                <div key={i}>
+                  <Skeleton className="h-3 w-20 mb-1" />
                   <Skeleton className="h-4 w-full" />
                 </div>
               ))}
@@ -67,31 +52,42 @@ export default function ShelfDetailLoading() {
 
         {/* Right Side - Tabs */}
         <div>
+          {/* Tabs */}
           <div className="flex gap-2 mb-4">
-            <Skeleton className="h-10 w-40 rounded" />
-            <Skeleton className="h-10 w-40 rounded" />
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-10 w-48" />
           </div>
 
+          {/* Tab Content */}
           <div className="border rounded-lg p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <Skeleton className="h-6 w-40 mb-2" />
                 <Skeleton className="h-4 w-64" />
               </div>
+              <Skeleton className="h-9 w-32" />
             </div>
 
-            {/* Table Skeleton */}
-            <div className="space-y-3">
-              <div className="grid grid-cols-8 gap-4 pb-2 border-b">
-                {[...Array(8)].map((_, i) => (
-                  <Skeleton key={i} className="h-4 w-full" />
-                ))}
+            {/* Table */}
+            <div className="rounded-md border">
+              <div className="p-4 border-b">
+                <div className="flex gap-4">
+                  {[...Array(7)].map((_, i) => (
+                    <Skeleton key={i} className="h-4 w-20" />
+                  ))}
+                </div>
               </div>
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="grid grid-cols-8 gap-4 py-3">
-                  {[...Array(8)].map((_, j) => (
-                    <Skeleton key={j} className="h-4 w-full" />
-                  ))}
+                <div key={i} className="p-4 border-b last:border-b-0">
+                  <div className="flex gap-4 items-center">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-8 w-8 ml-auto" />
+                  </div>
                 </div>
               ))}
             </div>
