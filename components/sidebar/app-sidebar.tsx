@@ -127,6 +127,11 @@ const getNavigationSections = (
           icon: QrCode,
         },
         {
+          title: "Canvassing",
+          url: "/admin/canvassing",
+          icon: FileText,
+        },
+        {
           title: "Orders",
           url: "/admin/orders",
           icon: ShoppingCart,

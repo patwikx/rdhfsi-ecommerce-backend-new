@@ -120,3 +120,172 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print Styles */
+@media print {
+  @page {
+    size: letter landscape;
+    margin: 0.5in;
+  }
+  
+  /* Hide everything we don't want */
+  nav,
+  aside,
+  header:not(.print-header),
+  button,
+  [class*="border-b"],
+  [class*="backdrop-blur"] {
+    display: none !important;
+  }
+  
+  /* Make sure print content is visible */
+  #print-content {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+  }
+  
+  .print-header {
+    display: block !important;
+    margin-bottom: 20px;
+  }
+  
+  .print-title {
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 3px solid #000;
+    letter-spacing: 0.5px;
+  }
+  
+  .print-meta {
+    padding: 0;
+    margin-bottom: 15px;
+    border: none;
+  }
+  
+  .print-meta-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  
+  .print-meta-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .print-meta-item {
+    flex: 1;
+  }
+  
+  .print-label {
+    font-weight: bold;
+    font-size: 10px;
+    color: #000;
+    display: inline-block;
+    min-width: 120px;
+  }
+  
+  .print-value {
+    font-size: 10px;
+    color: #000;
+  }
+  
+  .print-summary-box {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    margin-bottom: 15px;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+  }
+  
+  .print-summary-item {
+    text-align: center;
+  }
+  
+  .print-summary-label {
+    display: block;
+    font-size: 10px;
+    font-weight: bold;
+    color: #000;
+    margin-bottom: 4px;
+  }
+  
+  .print-summary-value {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    color: #000;
+  }
+  
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9px !important;
+    page-break-inside: auto !important;
+    margin-bottom: 20px !important;
+  }
+  
+  thead {
+    display: table-header-group !important;
+  }
+  
+  th {
+    background-color: #e0e0e0 !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    padding: 6px 4px !important;
+    font-weight: bold !important;
+    font-size: 9px !important;
+    text-align: left !important;
+  }
+  
+  td {
+    border: 1px solid #999 !important;
+    padding: 5px 4px !important;
+    font-size: 9px !important;
+  }
+  
+  tr {
+    page-break-inside: avoid !important;
+  }
+  
+  .print-supplier-summary {
+    display: block !important;
+    margin-top: 20px !important;
+  }
+  
+  .print-supplier-summary > div:first-child {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #000;
+  }
+  
+  .print-supplier-card {
+    display: inline-block !important;
+    width: 24% !important;
+    margin-right: 1% !important;
+    padding: 10px !important;
+    border: 1px solid #000 !important;
+    vertical-align: top !important;
+    font-size: 10px !important;
+  }
+  
+  .print-supplier-card > div:first-child {
+    font-weight: bold !important;
+    font-size: 11px !important;
+    margin-bottom: 6px !important;
+    padding-bottom: 4px !important;
+    border-bottom: 1px solid #000 !important;
+  }
+  
+  .print-supplier-card > div {
+    margin: 3px 0 !important;
+    line-height: 1.5 !important;
+  }
+}

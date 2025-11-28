@@ -34,7 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MoreHorizontal, Edit, Trash2, Power, Search, ChevronLeft, ChevronRight, QrCode, CheckCircle2, Filter } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Power, Search, ChevronLeft, ChevronRight, QrCode, CheckCircle2, Filter, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { deleteProduct, toggleProductStatus, generateProductQRCodes } from '@/app/actions/product-actions';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -60,9 +61,10 @@ type Product = {
 type ProductListProps = {
   products: Product[];
   userRole: string;
+  isLoading?: boolean;
 };
 
-export function ProductList({ products: initialProducts, userRole }: ProductListProps) {
+export function ProductList({ products: initialProducts, userRole, isLoading: isLoadingProp = false }: ProductListProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -250,9 +252,47 @@ export function ProductList({ products: initialProducts, userRole }: ProductList
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.length === 0 ? (
+            {isLoadingProp ? (
+              // Skeleton loading rows
+              Array.from({ length: 10 }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell>
+                    <Skeleton className="h-10 w-10 rounded" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-6 w-16" />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Skeleton className="h-4 w-16 mx-auto" />
+                  </TableCell>
+                  {['ADMIN', 'MANAGER'].includes(userRole) && (
+                    <TableCell>
+                      <Skeleton className="h-8 w-8" />
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            ) : filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                <TableCell colSpan={10} className="text-center text-muted-foreground">
                   No products found
                 </TableCell>
               </TableRow>

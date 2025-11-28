@@ -170,7 +170,7 @@ export function ProductsPageClient({ userRole }: ProductsPageClientProps) {
         </div>
       </div>
 
-      <ProductList products={products} userRole={userRole} />
+      <ProductList products={products} userRole={userRole} isLoading={isLoading} />
     </div>
   );
 }

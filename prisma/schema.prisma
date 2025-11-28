@@ -282,6 +282,7 @@ model Product {
   cycleCounts          CycleCount[]
   cycleCountItems      CycleCountItem[]
   orderDraftItems      OrderDraftItem[]
+  canvassingItems      CanvassingItem[]
 
   @@index([categoryId])
   @@index([brandId])
@@ -1644,4 +1645,84 @@ enum NotificationType {
   PRODUCT_BACK_IN_STOCK
   PRICE_DROP
   SYSTEM
+}
+
+// ============================================
+// CANVASSING / PRICE COMPARISON SYSTEM
+// ============================================
+
+// Main canvassing document (per docCode)
+model Canvassing {
+  id String @id @default(cuid())
+
+  // From legacy system
+  legacyDocCode  String // docCode from legacy
+  legacyRefCode  String? // refCode1 from legacy
+  siteCode       String // siteCode from legacy
+  partyName      String? // Original supplier from legacy
+  partyTermsText String? // Original terms from legacy
+  docDate        DateTime? // Document date from legacy
+
+  // Canvassing details
+  status CanvassingStatus @default(IN_PROGRESS)
+  notes  String?
+
+  // Audit
+  createdBy String // User ID who created canvassing
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CanvassingItem[]
+
+  @@unique([legacyDocCode])
+  @@index([siteCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Items within a canvassing document
+model CanvassingItem {
+  id           String     @id @default(cuid())
+  canvassingId String
+  canvassing   Canvassing @relation(fields: [canvassingId], references: [id], onDelete: Cascade)
+
+  // Product info
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  barcode     String
+  productName String
+
+  // Original price from legacy
+  originalPrice Decimal? @db.Decimal(12, 2)
+
+  // Supplier 1
+  supplier1Name  String?
+  supplier1Price Decimal? @db.Decimal(12, 2)
+  supplier1Terms String?
+
+  // Supplier 2
+  supplier2Name  String?
+  supplier2Price Decimal? @db.Decimal(12, 2)
+  supplier2Terms String?
+
+  // Supplier 3
+  supplier3Name  String?
+  supplier3Price Decimal? @db.Decimal(12, 2)
+  supplier3Terms String?
+
+  // Additional details
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([canvassingId])
+  @@index([productId])
+  @@index([barcode])
+}
+
+enum CanvassingStatus {
+  IN_PROGRESS // Actively getting quotes
+  COMPLETED // All quotes received
+  CANCELLED
 }
