@@ -85,7 +85,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         c.typeCode = 'POS'
         AND c.siteCode = '007'
         AND a.isConcession = '0'
-AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW - CHARGE', 'NEW - CASH')
+AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH')
         AND f.payment_type_code NOT IN ('EXCHANGE', 'EWT')
         AND CAST(d.invoice_date AS DATE) >= CAST(@param0 AS DATE)
         AND CAST(d.invoice_date AS DATE) <= CAST(@param1 AS DATE)
