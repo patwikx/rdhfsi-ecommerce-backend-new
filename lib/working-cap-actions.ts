@@ -86,7 +86,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         AND c.siteCode = '007'
         AND a.isConcession = '0'
         AND CAST(b.remark AS VARCHAR(MAX)) = 'NEW'
-        AND f.payment_type_code NOT IN ('EXCHANGE', 'EWT', 'EXCH')
+        AND f.payment_type_code NOT IN ('EXCHANGE', 'EWT')
         AND CAST(d.invoice_date AS DATE) >= CAST(@param0 AS DATE)
         AND CAST(d.invoice_date AS DATE) <= CAST(@param1 AS DATE)
       ORDER BY 
