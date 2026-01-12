@@ -24,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { ArrowLeft, Save, Loader2, Check, ChevronsUpDown } from 'lucide-react'
+import { Save, Loader2, Check, ChevronsUpDown, Printer } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -143,6 +143,10 @@ export default function NewCanvassingPage() {
     setItems(newItems)
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
   const handleSave = async () => {
     if (items.length === 0) {
       toast.error('No items to save')
@@ -206,13 +210,109 @@ export default function NewCanvassingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      {/* Print Document */}
+      <div id="print-content" className="print:block hidden">
+        <div className="print-header">
+          <div className="print-title">SUPPLIER PRICE CANVASSING FORM</div>
+          <div className="print-meta">
+            <div className="print-meta-row">
+              <div className="print-meta-item">
+                <span className="print-label">Purchase Request #:</span>
+                <span className="print-value">{selectedDocCode || '_______________'}</span>
+              </div>
+              <div className="print-meta-item">
+                <span className="print-label">Reference:</span>
+                <span className="print-value">{items[0]?.refCode1 || '_______________'}</span>
+              </div>
+              <div className="print-meta-item">
+                <span className="print-label">Site:</span>
+                <span className="print-value">{items[0]?.siteCode || '001'}</span>
+              </div>
+              <div className="print-meta-item">
+                <span className="print-label">Date:</span>
+                <span className="print-value">{new Date().toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div className="print-meta-row">
+              <div className="print-meta-item">
+                <span className="print-label">Original Supplier:</span>
+                <span className="print-value">{originalData?.partyName || '_______________'}</span>
+              </div>
+              <div className="print-meta-item">
+                <span className="print-label">Payment Terms:</span>
+                <span className="print-value">{originalData?.partyTermsText || '_______________'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Items Table */}
+        <table>
+          <thead>
+            <tr>
+              <th style={{width: '8%'}}>Barcode</th>
+              <th style={{width: '20%'}}>Product</th>
+              <th style={{width: '8%'}}>Original</th>
+              <th style={{width: '12%'}}>Supplier 1</th>
+              <th style={{width: '8%'}}>Price 1</th>
+              <th style={{width: '12%'}}>Supplier 2</th>
+              <th style={{width: '8%'}}>Price 2</th>
+              <th style={{width: '12%'}}>Supplier 3</th>
+              <th style={{width: '8%'}}>Price 3</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={`${item.barcode}-${index}`}>
+                <td>{item.barcode}</td>
+                <td>{item.name}</td>
+                <td style={{textAlign: 'right'}}>₱{item.price.toFixed(2)}</td>
+                <td>{item.supplier1Name || ''}</td>
+                <td style={{textAlign: 'right'}}>{item.supplier1Price || ''}</td>
+                <td>{item.supplier2Name || ''}</td>
+                <td style={{textAlign: 'right'}}>{item.supplier2Price || ''}</td>
+                <td>{item.supplier3Name || ''}</td>
+                <td style={{textAlign: 'right'}}>{item.supplier3Price || ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Signature Section */}
+        <div style={{marginTop: '40px', display: 'flex', justifyContent: 'space-between'}}>
+          <div style={{textAlign: 'center', width: '30%'}}>
+            <div style={{borderTop: '1px solid #000', paddingTop: '8px', marginTop: '40px'}}>
+              <div style={{fontWeight: 'bold', fontSize: '10px'}}>Prepared By</div>
+              <div style={{fontSize: '9px', color: '#666'}}>Date: _______________</div>
+            </div>
+          </div>
+          <div style={{textAlign: 'center', width: '30%'}}>
+            <div style={{borderTop: '1px solid #000', paddingTop: '8px', marginTop: '40px'}}>
+              <div style={{fontWeight: 'bold', fontSize: '10px'}}>Checked By</div>
+              <div style={{fontSize: '9px', color: '#666'}}>Date: _______________</div>
+            </div>
+          </div>
+          <div style={{textAlign: 'center', width: '30%'}}>
+            <div style={{borderTop: '1px solid #000', paddingTop: '8px', marginTop: '40px'}}>
+              <div style={{fontWeight: 'bold', fontSize: '10px'}}>Approved By</div>
+              <div style={{fontSize: '9px', color: '#666'}}>Date: _______________</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <div className="min-h-screen bg-background print:hidden">
       {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center px-6 gap-4">
           <div className="flex-1">
             <h1 className="text-2xl font-bold">New Canvassing</h1>
           </div>
+          <Button variant="outline" onClick={handlePrint} disabled={items.length === 0}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </Button>
           <Button onClick={handleSave} disabled={isSaving || items.length === 0}>
             {isSaving ? (
               <>
@@ -502,5 +602,6 @@ export default function NewCanvassingPage() {
         )}
       </div>
     </div>
+    </>
   )
 }
