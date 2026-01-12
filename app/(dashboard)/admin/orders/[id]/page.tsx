@@ -5,8 +5,8 @@ import { getOrderById } from '@/app/actions/order-actions';
 import { OrderDetails } from '@/components/admin/orders/order-details';
 import { OrderActions } from '@/components/admin/orders/order-actions';
 import { OrderTimeline } from '@/components/admin/orders/order-timeline';
+import { OrderPrintButton } from '@/components/admin/orders/order-print-button';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata = {
@@ -58,6 +58,7 @@ export default async function OrderDetailPage({
             Placed on {new Date(order.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <OrderPrintButton order={order} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
