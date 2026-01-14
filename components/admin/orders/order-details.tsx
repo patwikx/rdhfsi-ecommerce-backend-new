@@ -82,39 +82,23 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
     }).format(amount);
   };
 
-  // FIX: Assign attachments section to a variable with proper type
-  let attachmentsSection: React.ReactNode = null;
-  if (
-    order.paymentDetails &&
-    typeof order.paymentDetails === 'object' &&
-    'attachments' in order.paymentDetails &&
-    Array.isArray((order.paymentDetails as { attachments?: string[] }).attachments) &&
-    (order.paymentDetails as { attachments: string[] }).attachments.length > 0
-  ) {
-    const attachments = (order.paymentDetails as { attachments: string[] }).attachments;
-    attachmentsSection = (
-      <div className="border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <FileText className="h-5 w-5" />
-          <h3 className="font-semibold">Attachments</h3>
-        </div>
-        <div className="space-y-2">
-          {attachments.map((url, index) => (
-            <a
-              key={index}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-            >
-              <FileText className="h-4 w-4" />
-              Attachment {index + 1}
-            </a>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Extract attachments from paymentDetails
+  const getAttachments = (): string[] => {
+    if (!order.paymentDetails) return [];
+    
+    try {
+      const details = order.paymentDetails as any;
+      if (details.attachments && Array.isArray(details.attachments)) {
+        return details.attachments.filter((url: any) => typeof url === 'string');
+      }
+    } catch (error) {
+      console.error('Error parsing payment details:', error);
+    }
+    
+    return [];
+  };
+
+  const attachments = getAttachments();
 
   return (
     <div className="space-y-6">
@@ -283,8 +267,29 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
         </div>
       )}
 
-      {/* Attachments fixed section */}
-      {attachmentsSection}
+      {/* Attachments */}
+      {attachments.length > 0 && (
+        <div className="border rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-5 w-5" />
+            <h3 className="font-semibold">Attachments (PO/Payment Proof)</h3>
+          </div>
+          <div className="space-y-2">
+            {attachments.map((url, index) => (
+              <a
+                key={index}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+              >
+                <FileText className="h-4 w-4" />
+                Attachment {index + 1}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
