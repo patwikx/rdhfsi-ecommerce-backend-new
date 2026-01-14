@@ -83,19 +83,32 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
   };
 
   // Extract attachments from paymentDetails
-  const getAttachments = (): string[] => {
+  const getAttachments = (): { url: string; label: string }[] => {
     if (!order.paymentDetails) return [];
+    
+    const attachments: { url: string; label: string }[] = [];
     
     try {
       const details = order.paymentDetails as any;
+      
+      // Check for poFileUrl (PO attachment)
+      if (details.poFileUrl && typeof details.poFileUrl === 'string') {
+        attachments.push({ url: details.poFileUrl, label: 'Purchase Order (PO)' });
+      }
+      
+      // Check for attachments array (legacy format)
       if (details.attachments && Array.isArray(details.attachments)) {
-        return details.attachments.filter((url: any) => typeof url === 'string');
+        details.attachments.forEach((url: any, index: number) => {
+          if (typeof url === 'string') {
+            attachments.push({ url, label: `Attachment ${index + 1}` });
+          }
+        });
       }
     } catch (error) {
       console.error('Error parsing payment details:', error);
     }
     
-    return [];
+    return attachments;
   };
 
   const attachments = getAttachments();
@@ -272,19 +285,19 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
         <div className="border rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <FileText className="h-5 w-5" />
-            <h3 className="font-semibold">Attachments (PO/Payment Proof)</h3>
+            <h3 className="font-semibold">Attachments</h3>
           </div>
           <div className="space-y-2">
-            {attachments.map((url, index) => (
+            {attachments.map((attachment, index) => (
               <a
                 key={index}
-                href={url}
+                href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
               >
                 <FileText className="h-4 w-4" />
-                Attachment {index + 1}
+                {attachment.label}
               </a>
             ))}
           </div>
