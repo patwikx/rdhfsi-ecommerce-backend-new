@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -10,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Package, MapPin, CreditCard, FileText } from 'lucide-react';
+import { Package, MapPin, CreditCard, FileText, Download, Loader2, ExternalLink } from 'lucide-react';
 import { OrderStatus, PaymentStatus, FulfillmentStatus } from '@prisma/client';
+import { toast } from 'sonner';
 
 type OrderDetailsProps = {
   order: {
@@ -75,6 +77,8 @@ const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
 };
 
 export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
+  const [loadingFile, setLoadingFile] = useState<string | null>(null);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -113,8 +117,57 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
 
   const attachments = getAttachments();
 
+  // Handle viewing file with fresh presigned URL
+  const handleViewFile = async (originalUrl: string, label: string) => {
+    setLoadingFile(originalUrl);
+    try {
+      const response = await fetch(`/api/files/presigned-url?url=${encodeURIComponent(originalUrl)}`);
+      const data = await response.json();
+      
+      if (data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        toast.error('Failed to get file URL');
+      }
+    } catch (error) {
+      console.error('Error getting presigned URL:', error);
+      toast.error('Failed to open file');
+    } finally {
+      setLoadingFile(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Attachments - Show prominently at top if exists */}
+      {attachments.length > 0 && (
+        <div className="border rounded-lg p-4 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold">Attachments</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((attachment, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewFile(attachment.url, attachment.label)}
+                disabled={loadingFile === attachment.url}
+                className="gap-2"
+              >
+                {loadingFile === attachment.url ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" />
+                )}
+                {attachment.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Order Items */}
       <div className="border rounded-lg">
         <div className="p-4 border-b">
@@ -277,30 +330,6 @@ export function OrderDetails({ order }: OrderDetailsProps): React.ReactElement {
             <h3 className="font-semibold">Customer Notes</h3>
           </div>
           <p className="text-sm text-muted-foreground">{order.notes}</p>
-        </div>
-      )}
-
-      {/* Attachments */}
-      {attachments.length > 0 && (
-        <div className="border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText className="h-5 w-5" />
-            <h3 className="font-semibold">Attachments</h3>
-          </div>
-          <div className="space-y-2">
-            {attachments.map((attachment, index) => (
-              <a
-                key={index}
-                href={attachment.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-              >
-                <FileText className="h-4 w-4" />
-                {attachment.label}
-              </a>
-            ))}
-          </div>
         </div>
       )}
     </div>
