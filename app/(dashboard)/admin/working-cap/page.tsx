@@ -334,6 +334,7 @@ export default function Page() {
                 mode="single"
                 selected={startDate}
                 onSelect={handleStartDateChange}
+                captionLayout='dropdown'
               />
             </PopoverContent>
           </Popover>
@@ -360,6 +361,7 @@ export default function Page() {
                 selected={endDate}
                 onSelect={handleEndDateChange}
                 disabled={(date) => startDate ? date < startDate : false}
+                captionLayout='dropdown'
               />
             </PopoverContent>
           </Popover>
