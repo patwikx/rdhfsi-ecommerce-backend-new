@@ -16,6 +16,8 @@ type Product = {
   name: string;
   slug: string;
   retailPrice: number;
+  wholesalePrice?: number | null;
+  poPrice?: number | null;
   isActive: boolean;
   isFeatured: boolean;
   category: { name: string };

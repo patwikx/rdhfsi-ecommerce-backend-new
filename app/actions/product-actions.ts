@@ -27,6 +27,8 @@ export async function getAllProducts(filters?: {
   name: string;
   slug: string;
   retailPrice: number;
+  wholesalePrice?: number | null;
+  poPrice?: number | null;
   isActive: boolean;
   isFeatured: boolean;
   category: { name: string };
@@ -117,6 +119,8 @@ export async function getAllProducts(filters?: {
         name: productData.name,
         slug: productData.slug,
         retailPrice: Number(productData.retailPrice),
+        wholesalePrice: productData.wholesalePrice ? Number(productData.wholesalePrice) : null,
+        poPrice: productData.poPrice ? Number(productData.poPrice) : null,
         isActive: productData.isActive,
         isFeatured: productData.isFeatured,
         category: productData.category,
