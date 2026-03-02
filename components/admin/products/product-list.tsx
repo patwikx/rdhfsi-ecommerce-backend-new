@@ -56,6 +56,7 @@ type Product = {
   brand: { name: string } | null;
   images: { url: string; sortOrder: number }[];
   _count: { inventories: number };
+  totalQuantity: number;
 };
 
 type ProductListProps = {
@@ -246,6 +247,7 @@ export function ProductList({ products: initialProducts, userRole, isLoading: is
               <TableHead>Retail Price</TableHead>
               <TableHead>Wholesale</TableHead>
               <TableHead>PO Price</TableHead>
+              <TableHead>Total Qty</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-center">Stock</TableHead>
               {['ADMIN', 'MANAGER'].includes(userRole) && <TableHead className="w-[70px]"></TableHead>}
@@ -278,6 +280,9 @@ export function ProductList({ products: initialProducts, userRole, isLoading: is
                     <Skeleton className="h-4 w-20" />
                   </TableCell>
                   <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
                     <Skeleton className="h-6 w-16" />
                   </TableCell>
                   <TableCell className="text-center">
@@ -292,7 +297,7 @@ export function ProductList({ products: initialProducts, userRole, isLoading: is
               ))
             ) : filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">
+                <TableCell colSpan={11} className="text-center text-muted-foreground">
                   No products found
                 </TableCell>
               </TableRow>
@@ -328,6 +333,13 @@ export function ProductList({ products: initialProducts, userRole, isLoading: is
                   </TableCell>
                   <TableCell className="text-sm text-purple-600">
                     {product.poPrice ? `₱${Number(product.poPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                  </TableCell>
+                  <TableCell className="font-semibold text-center">
+                    {product.totalQuantity > 0 ? (
+                      <span className="text-green-600">{product.totalQuantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    ) : (
+                      <span className="text-muted-foreground">0.00</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">

@@ -25,6 +25,7 @@ type Product = {
   images: { url: string; sortOrder: number }[];
   qrCodeImage: string | null;
   _count: { inventories: number };
+  totalQuantity: number;
   inventory?: { quantity: number; availableQty: number } | null;
 };
 

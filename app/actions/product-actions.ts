@@ -36,6 +36,7 @@ export async function getAllProducts(filters?: {
   images: { url: string; sortOrder: number }[];
   qrCodeImage: string | null;
   _count: { inventories: number };
+  totalQuantity: number;
   inventory?: { quantity: number; availableQty: number } | null;
 }[]>> {
   const session = await auth();
@@ -93,14 +94,13 @@ export async function getAllProducts(filters?: {
           orderBy: { sortOrder: 'desc' },
           take: 1,
         },
-        inventories: filters?.siteId ? {
-          where: { siteId: filters.siteId },
+        inventories: {
           select: {
             quantity: true,
             availableQty: true,
+            siteId: true,
           },
-          take: 1,
-        } : false,
+        },
         _count: {
           select: { inventories: true },
         },
@@ -111,6 +111,16 @@ export async function getAllProducts(filters?: {
     // Convert Decimal fields to numbers for client components
     const products = productsData.map(product => {
       const { inventories, ...productData } = product
+      
+      // Calculate total quantity across all sites
+      const totalQuantity = Array.isArray(inventories) 
+        ? inventories.reduce((sum, inv) => sum + Number(inv.quantity), 0)
+        : 0;
+      
+      // Get inventory for specific site if siteId filter is provided
+      const siteInventory = filters?.siteId && Array.isArray(inventories)
+        ? inventories.find(inv => inv.siteId === filters.siteId)
+        : null;
       
       return {
         id: productData.id,
@@ -128,10 +138,11 @@ export async function getAllProducts(filters?: {
         images: productData.images,
         qrCodeImage: productData.qrCodeImage,
         _count: productData._count,
-        inventory: Array.isArray(inventories) && inventories.length > 0
+        totalQuantity,
+        inventory: siteInventory
           ? {
-              quantity: Number(inventories[0].quantity),
-              availableQty: Number(inventories[0].availableQty),
+              quantity: Number(siteInventory.quantity),
+              availableQty: Number(siteInventory.availableQty),
             }
           : null,
       }
