@@ -177,8 +177,8 @@ export default function Page() {
           return value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         }
         
-        // Truncate Name and Party Name fields
-        if ((key === 'Name' || key === 'Party Name') && typeof value === 'string') {
+        // Truncate Name, Party Name, and Supplier Name fields
+        if ((key === 'Name' || key === 'Party Name' || key === 'Supplier Name') && typeof value === 'string') {
           const maxLength = 30
           if (value.length > maxLength) {
             return (

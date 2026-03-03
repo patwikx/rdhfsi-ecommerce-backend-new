@@ -11,6 +11,7 @@ export type InvoiceItem = {
   'Party Name': string
   Remark: string
   'Invoice Date': string
+  'Supplier Name': string
   'PO#': string
   'SI#': string
   'Payment Type': string
@@ -71,6 +72,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         d.party_name AS 'Party Name', 
         CAST(b.remark AS VARCHAR(MAX)) AS Remark, 
         FORMAT(d.invoice_date, 'MM-dd-yyyy') AS 'Invoice Date', 
+        h.name AS 'Supplier Name',
         f.reference_code AS 'PO#', 
         d.receipt_no AS 'SI#', 
         f.payment_type_code AS 'Payment Type', 
@@ -81,6 +83,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         LEFT JOIN dbo.invoices AS d WITH (NOLOCK) ON b.inventoryDocId = d.document_no
         LEFT JOIN dbo.invoice_payments AS f WITH (NOLOCK) ON b.inventoryDocId = f.invoice_id
         LEFT JOIN dbo.Category AS g WITH (NOLOCK) ON a.departmentId = g.categoryId
+        LEFT JOIN dbo.Supplier AS h WITH (NOLOCK) on a.supplierId = h.supplierId 
       WHERE 
         c.typeCode = 'POS'
         AND c.siteCode = '007'
