@@ -42,6 +42,7 @@ type PurchaseItem = {
   name: string
   docCode: string
   price: number
+  retailPrice: number | null
   siteCode: string
   partyName: string
   partyTermsText: string
@@ -77,6 +78,17 @@ export default function NewCanvassingPage() {
   useEffect(() => {
     loadDocCodes()
   }, [])
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null || Number.isNaN(value)) {
+      return 'N/A'
+    }
+
+    return `₱${value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`
+  }
 
   const loadDocCodes = async () => {
     setIsLoadingDocs(true)
@@ -252,8 +264,9 @@ export default function NewCanvassingPage() {
           <thead>
             <tr>
               <th style={{width: '8%'}}>Barcode</th>
-              <th style={{width: '20%'}}>Product</th>
-              <th style={{width: '8%'}}>Original</th>
+              <th style={{width: '18%'}}>Product</th>
+              <th style={{width: '8%'}}>Landed Cost</th>
+              <th style={{width: '8%'}}>Retail Price</th>
               <th style={{width: '12%'}}>Supplier 1</th>
               <th style={{width: '8%'}}>Price 1</th>
               <th style={{width: '12%'}}>Supplier 2</th>
@@ -267,7 +280,8 @@ export default function NewCanvassingPage() {
               <tr key={`${item.barcode}-${index}`}>
                 <td>{item.barcode}</td>
                 <td>{item.name}</td>
-                <td style={{textAlign: 'right'}}>₱{item.price.toFixed(2)}</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(item.price)}</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(item.retailPrice)}</td>
                 <td>{item.supplier1Name || ''}</td>
                 <td style={{textAlign: 'right'}}>{item.supplier1Price || ''}</td>
                 <td>{item.supplier2Name || ''}</td>
@@ -429,7 +443,8 @@ export default function NewCanvassingPage() {
                   <TableRow>
                     <TableHead className="w-32">Barcode</TableHead>
                     <TableHead className="min-w-[200px]">Product Name</TableHead>
-                    <TableHead className="text-right w-32">Original Price</TableHead>
+                    <TableHead className="text-right w-32">Landed Cost</TableHead>
+                    <TableHead className="text-right w-32">Retail Price</TableHead>
                     <TableHead className="w-48">Supplier 1</TableHead>
                     <TableHead className="w-32">Price 1</TableHead>
                     <TableHead className="w-48">Supplier 2</TableHead>
@@ -443,7 +458,8 @@ export default function NewCanvassingPage() {
                     <TableRow key={`${item.barcode}-${index}`}>
                       <TableCell className="font-mono text-xs">{item.barcode}</TableCell>
                       <TableCell>{item.name}</TableCell>
-                      <TableCell className="text-right">₱{item.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.retailPrice)}</TableCell>
                       
                       {/* Supplier 1 */}
                       <TableCell>
@@ -516,8 +532,10 @@ export default function NewCanvassingPage() {
                         <p className="text-xs text-muted-foreground font-mono">{item.barcode}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Original</p>
-                        <p className="font-semibold">₱{item.price.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">Landed Cost</p>
+                        <p className="font-semibold">{formatCurrency(item.price)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Retail Price</p>
+                        <p className="font-semibold">{formatCurrency(item.retailPrice)}</p>
                       </div>
                     </div>
                   </div>
