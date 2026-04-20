@@ -258,6 +258,7 @@ export async function getCanvassingById(id: string): Promise<ActionResult<{
     barcode: string
     productName: string
     originalPrice: number | null
+    retailPrice: number | null
     supplier1Name: string | null
     supplier1Price: number | null
     supplier1Terms: string | null
@@ -276,6 +277,14 @@ export async function getCanvassingById(id: string): Promise<ActionResult<{
       where: { id },
       include: {
         items: {
+          include: {
+            product: {
+              select: {
+                barcode: true,
+                retailPrice: true
+              }
+            }
+          },
           orderBy: { productName: 'asc' }
         }
       }
@@ -287,6 +296,28 @@ export async function getCanvassingById(id: string): Promise<ActionResult<{
         error: 'Canvassing not found'
       }
     }
+
+    const missingRetailPriceBarcodes = canvassing.items
+      .filter(item => !item.product?.retailPrice && item.barcode)
+      .map(item => item.barcode)
+
+    const fallbackProducts = missingRetailPriceBarcodes.length > 0
+      ? await prisma.product.findMany({
+          where: {
+            barcode: {
+              in: [...new Set(missingRetailPriceBarcodes)]
+            }
+          },
+          select: {
+            barcode: true,
+            retailPrice: true
+          }
+        })
+      : []
+
+    const fallbackRetailPriceByBarcode = new Map(
+      fallbackProducts.map(product => [product.barcode, Number(product.retailPrice)])
+    )
 
     const data = {
       id: canvassing.id,
@@ -303,6 +334,9 @@ export async function getCanvassingById(id: string): Promise<ActionResult<{
         barcode: item.barcode,
         productName: item.productName,
         originalPrice: item.originalPrice ? parseFloat(item.originalPrice.toString()) : null,
+        retailPrice: item.product?.retailPrice
+          ? parseFloat(item.product.retailPrice.toString())
+          : (fallbackRetailPriceByBarcode.get(item.barcode) ?? null),
         supplier1Name: item.supplier1Name,
         supplier1Price: item.supplier1Price ? parseFloat(item.supplier1Price.toString()) : null,
         supplier1Terms: item.supplier1Terms,

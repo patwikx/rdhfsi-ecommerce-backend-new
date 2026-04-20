@@ -24,6 +24,7 @@ type CanvassingItem = {
   barcode: string
   productName: string
   originalPrice: number | null
+  retailPrice: number | null
   supplier1Name: string | null
   supplier1Price: number | null
   supplier1Terms: string | null
@@ -137,6 +138,14 @@ export default function CanvassingDetailPage() {
     window.print()
   }
 
+  const formatCurrency = (value: number | null) => {
+    if (value === null || Number.isNaN(value)) {
+      return '-'
+    }
+
+    return `₱${value.toFixed(2)}`
+  }
+
   const handleExportCSV = () => {
     if (!canvassing) return
 
@@ -149,7 +158,8 @@ export default function CanvassingDetailPage() {
       'Created Date',
       'Barcode',
       'Product Name',
-      'Original Price',
+      'Landed Cost',
+      'Retail Price',
       'Supplier 1',
       'Price 1',
       'Terms 1',
@@ -176,6 +186,7 @@ export default function CanvassingDetailPage() {
       item.barcode,
       item.productName,
       item.originalPrice?.toFixed(2) || '',
+      item.retailPrice?.toFixed(2) || '',
       item.supplier1Name || '',
       item.supplier1Price?.toFixed(2) || '',
       item.supplier1Terms || '',
@@ -287,8 +298,9 @@ export default function CanvassingDetailPage() {
           <thead>
             <tr>
               <th style={{width: '7%'}}>Barcode</th>
-              <th style={{width: '18%'}}>Product</th>
-              <th style={{width: '6%'}}>Original</th>
+              <th style={{width: '16%'}}>Product</th>
+              <th style={{width: '6%'}}>Landed Cost</th>
+              <th style={{width: '6%'}}>Retail</th>
               <th style={{width: '10%'}}>Supplier 1</th>
               <th style={{width: '6%'}}>Price 1</th>
               <th style={{width: '7%'}}>Terms 1</th>
@@ -305,7 +317,8 @@ export default function CanvassingDetailPage() {
               <tr key={item.id}>
                 <td>{item.barcode}</td>
                 <td>{item.productName}</td>
-                <td style={{textAlign: 'right'}}>₱{item.originalPrice?.toFixed(2) || '-'}</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(item.originalPrice)}</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(item.retailPrice)}</td>
                 <td>{item.supplier1Name || '-'}</td>
                 <td style={{textAlign: 'right'}}>{item.supplier1Price ? `₱${item.supplier1Price.toFixed(2)}` : '-'}</td>
                 <td>{item.supplier1Terms || '-'}</td>
@@ -329,7 +342,7 @@ export default function CanvassingDetailPage() {
                 name: canvassing.partyName || 'Original',
                 total: totalOriginal,
                 items: editedItems.length,
-                label: 'Original'
+                label: 'Landed Cost'
               },
               ...[1, 2, 3].map(num => {
                 const key = `supplier${num}` as 'supplier1' | 'supplier2' | 'supplier3'
@@ -418,7 +431,7 @@ export default function CanvassingDetailPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
           <div className="border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-1">Original Total</p>
+            <p className="text-sm text-muted-foreground mb-1">Landed Cost Total</p>
             <p className="text-2xl font-bold">₱{totalOriginal.toFixed(2)}</p>
           </div>
           <div className="border rounded-lg p-4">
@@ -490,7 +503,8 @@ export default function CanvassingDetailPage() {
                 <TableRow>
                   <TableHead className="w-32">Barcode</TableHead>
                   <TableHead className="min-w-[200px]">Product Name</TableHead>
-                  <TableHead className="text-right w-32">Original Price</TableHead>
+                  <TableHead className="text-right w-32">Landed Cost</TableHead>
+                  <TableHead className="text-right w-32">Retail Price</TableHead>
                   <TableHead className="w-40">Supplier 1</TableHead>
                   <TableHead className="text-right w-32">Price 1</TableHead>
                   <TableHead className="w-32">Terms 1</TableHead>
@@ -524,8 +538,9 @@ export default function CanvassingDetailPage() {
                       <TableCell className="font-mono text-xs">{item.barcode}</TableCell>
                       <TableCell>{item.productName}</TableCell>
                       <TableCell className="text-right font-semibold">
-                        {item.originalPrice ? `₱${item.originalPrice.toFixed(2)}` : '-'}
+                        {formatCurrency(item.originalPrice)}
                       </TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.retailPrice)}</TableCell>
                       
                       <TableCell>{item.supplier1Name || '-'}</TableCell>
                       <TableCell className="text-right">
