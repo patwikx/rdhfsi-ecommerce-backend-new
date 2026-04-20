@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getConnection } from '@/lib/database'
 import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,9 +61,31 @@ export async function GET(request: NextRequest) {
       refCode1: row.refCode1 ? row.refCode1.toString() : ''
     }))
 
+    const barcodes = [...new Set(items.map(item => item.barcode).filter(Boolean))]
+    const products = barcodes.length > 0
+      ? await prisma.product.findMany({
+          where: {
+            barcode: {
+              in: barcodes
+            }
+          },
+          select: {
+            barcode: true,
+            retailPrice: true
+          }
+        })
+      : []
+
+    const retailPriceByBarcode = new Map(
+      products.map(product => [product.barcode, Number(product.retailPrice)])
+    )
+
     return NextResponse.json({
       success: true,
-      data: items
+      data: items.map(item => ({
+        ...item,
+        retailPrice: retailPriceByBarcode.get(item.barcode) ?? null
+      }))
     })
 
   } catch (error) {

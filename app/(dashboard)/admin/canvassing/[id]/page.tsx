@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, TrendingDown, TrendingUp, Minus, Edit, Save, X, Printer } from 'lucide-react'
+import { Loader2, TrendingDown, TrendingUp, Minus, Edit, Save, X, Printer, Download } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { getCanvassingById } from '@/app/actions/canvassing-simple-actions'
@@ -135,6 +135,74 @@ export default function CanvassingDetailPage() {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleExportCSV = () => {
+    if (!canvassing) return
+
+    const headers = [
+      'Purchase Request #',
+      'Reference',
+      'Site Code',
+      'Original Supplier',
+      'Original Terms',
+      'Created Date',
+      'Barcode',
+      'Product Name',
+      'Original Price',
+      'Supplier 1',
+      'Price 1',
+      'Terms 1',
+      'Supplier 2',
+      'Price 2',
+      'Terms 2',
+      'Supplier 3',
+      'Price 3',
+      'Terms 3',
+    ]
+
+    const escapeCSV = (value: string | number | null | undefined) => {
+      const stringValue = value === null || value === undefined ? '' : String(value)
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+
+    const rows = editedItems.map(item => [
+      canvassing.legacyDocCode,
+      canvassing.legacyRefCode || '',
+      canvassing.siteCode,
+      canvassing.partyName || '',
+      canvassing.partyTermsText || '',
+      new Date(canvassing.createdAt).toLocaleString(),
+      item.barcode,
+      item.productName,
+      item.originalPrice?.toFixed(2) || '',
+      item.supplier1Name || '',
+      item.supplier1Price?.toFixed(2) || '',
+      item.supplier1Terms || '',
+      item.supplier2Name || '',
+      item.supplier2Price?.toFixed(2) || '',
+      item.supplier2Terms || '',
+      item.supplier3Name || '',
+      item.supplier3Price?.toFixed(2) || '',
+      item.supplier3Terms || '',
+    ])
+
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `canvassing-${canvassing.legacyDocCode}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success(`Exported ${editedItems.length} items to CSV`)
   }
 
   const calculateSavings = (original: number | null, supplier: number | null) => {
@@ -308,6 +376,10 @@ export default function CanvassingDetailPage() {
             {statusLabels[canvassing.status as keyof typeof statusLabels]}
           </Badge>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportCSV}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="w-4 h-4 mr-2" />
               Print
