@@ -1,6 +1,7 @@
 'use server'
 
 import { executeQuery } from '@/lib/working-cap/db'
+import { prisma } from '@/lib/prisma'
 import { DateRange } from 'react-day-picker'
 
 export type InvoiceItem = {
@@ -8,6 +9,7 @@ export type InvoiceItem = {
   Name: string
   Quantity: number
   'Amount Paid': number
+  'Landed Cost': number | null
   'Party Name': string
   Remark: string
   'Invoice Date': string
@@ -32,6 +34,99 @@ export type InventoryItem = {
 }
 
 export type DataType = 'invoices' | 'inventory'
+
+async function enrichInvoicesWithLandedCost(invoiceData: InvoiceItem[]): Promise<InvoiceItem[]> {
+  const uniqueBarcodes = [...new Set(invoiceData.map(item => item.Barcode).filter(Boolean))]
+
+  if (uniqueBarcodes.length === 0) {
+    return invoiceData.map(item => ({
+      Barcode: item.Barcode,
+      Name: item.Name,
+      Quantity: item.Quantity,
+      'Amount Paid': item['Amount Paid'],
+      'Landed Cost': null,
+      'Party Name': item['Party Name'],
+      Remark: item.Remark,
+      'Invoice Date': item['Invoice Date'],
+      'Supplier Name': item['Supplier Name'],
+      'PO#': item['PO#'],
+      'SI#': item['SI#'],
+      'Payment Type': item['Payment Type'],
+      Category: item.Category,
+    }))
+  }
+
+  const canvassingItems = await prisma.canvassingItem.findMany({
+    where: {
+      barcode: {
+        in: uniqueBarcodes,
+      },
+    },
+    select: {
+      barcode: true,
+      originalPrice: true,
+      createdAt: true,
+      canvassing: {
+        select: {
+          legacyRefCode: true,
+          legacyDocCode: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: [
+      { createdAt: 'desc' },
+    ],
+  })
+
+  const landedCostByBarcode = new Map<string, number>()
+  const landedCostByReferenceAndBarcode = new Map<string, number>()
+
+  for (const item of canvassingItems) {
+    if (!item.originalPrice) {
+      continue
+    }
+
+    const landedCost = Number(item.originalPrice)
+
+    if (!landedCostByBarcode.has(item.barcode)) {
+      landedCostByBarcode.set(item.barcode, landedCost)
+    }
+
+    const candidateRefs = [item.canvassing.legacyRefCode, item.canvassing.legacyDocCode]
+      .filter((value): value is string => Boolean(value))
+
+    for (const ref of candidateRefs) {
+      const exactKey = `${ref}::${item.barcode}`
+      if (!landedCostByReferenceAndBarcode.has(exactKey)) {
+        landedCostByReferenceAndBarcode.set(exactKey, landedCost)
+      }
+    }
+  }
+
+  return invoiceData.map(item => {
+    const exactKey = item['PO#'] ? `${item['PO#']}::${item.Barcode}` : null
+    const landedCost = exactKey
+      ? (landedCostByReferenceAndBarcode.get(exactKey) ?? landedCostByBarcode.get(item.Barcode) ?? null)
+      : (landedCostByBarcode.get(item.Barcode) ?? null)
+
+    return {
+      Barcode: item.Barcode,
+      Name: item.Name,
+      Quantity: item.Quantity,
+      'Amount Paid': item['Amount Paid'],
+      'Landed Cost': landedCost,
+      'Party Name': item['Party Name'],
+      Remark: item.Remark,
+      'Invoice Date': item['Invoice Date'],
+      'Supplier Name': item['Supplier Name'],
+      'PO#': item['PO#'],
+      'SI#': item['SI#'],
+      'Payment Type': item['Payment Type'],
+      Category: item.Category,
+    }
+  })
+}
 
 export async function fetchData(dataType: DataType, dateRange?: DateRange | null): Promise<InvoiceItem[] | InventoryItem[]> {
   // Return empty array if no date range is provided
@@ -165,8 +260,9 @@ AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CAR
         return hasValidDate && hasValidAmount && hasValidQuantity
       })
       
-      console.log(`Cleaned invoice data: ${cleanedData.length} valid records out of ${invoiceData.length} total`)
-      return cleanedData
+      const enrichedData = await enrichInvoicesWithLandedCost(cleanedData)
+      console.log(`Cleaned invoice data: ${enrichedData.length} valid records out of ${invoiceData.length} total`)
+      return enrichedData
       
     } else {
       const inventoryData = result as InventoryItem[]
