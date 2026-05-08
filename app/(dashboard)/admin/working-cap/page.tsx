@@ -23,16 +23,23 @@ import { useTheme } from 'next-themes'
 import * as XLSX from 'xlsx'
 
 // Import the actual types from your action file
-import { DataType, fetchData, InvoiceItem, InventoryItem } from '@/lib/working-cap-actions'
+import { BranchCode, DataType, fetchData, InvoiceItem, InventoryItem } from '@/lib/working-cap-actions'
 
 // Union type for the data items
 type DataItemType = InvoiceItem | InventoryItem
+
+const BRANCH_OPTIONS: Array<{ value: BranchCode; label: string }> = [
+  { value: '007', label: 'Santiago Branch' },
+  { value: '022', label: 'Tambler Branch' },
+  { value: 'all', label: 'All Branches' },
+]
 
 export default function Page() {
   useTheme()
   const [allData, setAllData] = useState<DataItemType[]>([])
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()
+  const [branchCode, setBranchCode] = useState<BranchCode>('007')
   const [dataType, setDataType] = useState<DataType>('invoices')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +80,7 @@ export default function Page() {
       
       try {
         // Fetch data with the selected date range
-        const result = await fetchData(dataType, dateRange)
+        const result = await fetchData(dataType, dateRange, branchCode)
         console.log('Raw data received:', result.length, 'records')
         
         // Sort by date (most recent first)
@@ -98,7 +105,12 @@ export default function Page() {
     }
     
     getData()
-  }, [dataType, dateRange])
+  }, [branchCode, dataType, dateRange])
+
+  const selectedBranchLabel = useMemo(
+    () => BRANCH_OPTIONS.find(option => option.value === branchCode)?.label ?? branchCode,
+    [branchCode]
+  )
 
   // Helper function to get date from either invoice or inventory item
   const getItemDate = (item: DataItemType): Date => {
@@ -302,6 +314,22 @@ export default function Page() {
       
       <div className="flex space-x-4 flex-wrap gap-y-4">
         <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Branch</label>
+          <Select value={branchCode} onValueChange={(value: BranchCode) => setBranchCode(value)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {BRANCH_OPTIONS.map(branch => (
+                <SelectItem key={branch.value} value={branch.value}>
+                  {branch.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Data Type</label>
           <Select value={dataType} onValueChange={(value: DataType) => setDataType(value)}>
             <SelectTrigger className="w-[180px]">
@@ -413,6 +441,7 @@ export default function Page() {
       {/* Show filter summary */}
       <div className="text-sm text-muted-foreground">
         Showing {filteredData.length} of {allData.length} records
+        <span> • Branch: {selectedBranchLabel}</span>
         {dateRange?.from && (
           <span> • Date range: {formatDate(dateRange.from)}{dateRange.to && ` to ${formatDate(dateRange.to)}`}</span>
         )}
