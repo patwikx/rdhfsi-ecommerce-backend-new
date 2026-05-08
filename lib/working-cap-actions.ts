@@ -8,6 +8,7 @@ export type InvoiceItem = {
   Name: string
   Quantity: number
   'Amount Paid': number
+  'Landed Cost': number | null
   'Party Name': string
   Remark: string
   'Invoice Date': string
@@ -69,6 +70,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         a.name AS Name, 
         b.quantity AS Quantity, 
         b.subTotal AS 'Amount Paid', 
+        ISNULL(a.landedCost, 0) AS 'Landed Cost',
         d.party_name AS 'Party Name', 
         CAST(b.remark AS VARCHAR(MAX)) AS Remark, 
         FORMAT(d.invoice_date, 'MM-dd-yyyy') AS 'Invoice Date', 
