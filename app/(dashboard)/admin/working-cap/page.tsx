@@ -227,6 +227,21 @@ export default function Page() {
     }, 0)
   }, [filteredData, dataType])
 
+  const totalLandedCost = useMemo(() => {
+    return filteredData.reduce((sum, item) => {
+      const quantity = typeof item.Quantity === 'number' ? item.Quantity : 0
+
+      let landedCost = 0
+      if (dataType === 'invoices' && 'Landed Cost' in item) {
+        landedCost = typeof item['Landed Cost'] === 'number' ? item['Landed Cost'] : 0
+      } else if (dataType === 'inventory' && 'Cost' in item) {
+        landedCost = typeof item.Cost === 'number' ? item.Cost : 0
+      }
+
+      return sum + (landedCost * quantity)
+    }, 0)
+  }, [filteredData, dataType])
+
   const handleStartDateChange = (date: Date | undefined) => {
     setStartDate(date)
     setCurrentPage(1)
@@ -481,11 +496,19 @@ export default function Page() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-[300px]"
           />
-          <div className="font-bold">
-            Total Amount: {totalAmount.toLocaleString('en-PH', { 
-              style: 'currency', 
-              currency: 'PHP' 
-            })}
+          <div className="flex items-center gap-6">
+            <div className="font-bold">
+              Total Landed Cost: {totalLandedCost.toLocaleString('en-PH', {
+                style: 'currency',
+                currency: 'PHP'
+              })}
+            </div>
+            <div className="font-bold">
+              Total Amount: {totalAmount.toLocaleString('en-PH', { 
+                style: 'currency', 
+                currency: 'PHP' 
+              })}
+            </div>
           </div>
         </div>
       )}
