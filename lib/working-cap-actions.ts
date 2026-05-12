@@ -33,8 +33,13 @@ export type InventoryItem = {
 }
 
 export type DataType = 'invoices' | 'inventory'
+export type BranchCode = 'all' | '007' | '022'
 
-export async function fetchData(dataType: DataType, dateRange?: DateRange | null): Promise<InvoiceItem[] | InventoryItem[]> {
+export async function fetchData(
+  dataType: DataType,
+  dateRange?: DateRange | null,
+  branchCode: BranchCode = '007'
+): Promise<InvoiceItem[] | InventoryItem[]> {
   // Return empty array if no date range is provided
   if (!dateRange?.from) {
     console.log('No date range provided, returning empty array')
@@ -55,12 +60,21 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
   const startDate = formatDateForSQL(dateRange.from)
   const endDate = dateRange.to ? formatDateForSQL(dateRange.to) : startDate
 
-  console.log('Date filtering:', { 
-    originalFrom: dateRange.from, 
+  console.log('Date filtering:', {
+    originalFrom: dateRange.from,
     originalTo: dateRange.to,
-    startDate, 
-    endDate 
+    startDate,
+    endDate,
+    branchCode,
   })
+
+  const invoiceBranchFilter = branchCode === 'all'
+    ? `c.siteCode IN ('007', '022')`
+    : `c.siteCode = @param2`
+
+  const inventoryBranchFilter = branchCode === 'all'
+    ? `I.originSiteCode IN ('007', '022')`
+    : `I.originSiteCode = @param2`
 
   if (dataType === 'invoices') {
     // Updated query with date range filtering
@@ -88,7 +102,7 @@ export async function fetchData(dataType: DataType, dateRange?: DateRange | null
         LEFT JOIN dbo.Supplier AS h WITH (NOLOCK) on a.supplierId = h.supplierId 
       WHERE 
         c.typeCode = 'POS'
-        AND c.siteCode = '007'
+        AND ${invoiceBranchFilter}
         AND a.isConcession = '0'
 AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CARD')
         AND f.payment_type_code NOT IN ('EXCHANGE', 'EWT')
@@ -98,6 +112,9 @@ AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CAR
         d.invoice_date ASC
     `
     params.push(startDate, endDate)
+    if (branchCode !== 'all') {
+      params.push(branchCode)
+    }
   } else {
     // Updated inventory query with date range filtering
     query = `
@@ -119,10 +136,10 @@ AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CAR
       WHERE 
         CAST(I.[postDate] AS DATE) >= CAST(@param0 AS DATE)
         AND CAST(I.[postDate] AS DATE) <= CAST(@param1 AS DATE)
+        AND ${inventoryBranchFilter}
         AND I.transCode = 'REC' 
         AND I.typeCode = 'DEL' 
         AND D.lineNumber > 0 
-        AND ISNULL(S.name, 'Main Warehouse') = 'Main Warehouse'
         AND D.subTotal > 0
         AND I.status = 'P'
       ORDER BY 
@@ -130,6 +147,9 @@ AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CAR
         I.docCode DESC
     `
     params.push(startDate, endDate)
+    if (branchCode !== 'all') {
+      params.push(branchCode)
+    }
   }
 
   try {
@@ -208,12 +228,16 @@ AND CAST(b.remark AS VARCHAR(MAX)) IN ('NEW', 'NEW-CHARGE', 'NEW-CASH', 'NEW-CAR
 // Helper function to validate date strings
 
 // Helper function to get unique values for filters - now requires date range
-export async function getFilterOptions(dataType: DataType, dateRange?: DateRange | null): Promise<{
+export async function getFilterOptions(
+  dataType: DataType,
+  dateRange?: DateRange | null,
+  branchCode: BranchCode = '007'
+): Promise<{
   categories: string[]
   paymentTypes: string[]
 }> {
   try {
-    const data = await fetchData(dataType, dateRange)
+    const data = await fetchData(dataType, dateRange, branchCode)
     
     let categories: string[] = []
     let paymentTypes: string[] = []
@@ -238,13 +262,17 @@ export async function getFilterOptions(dataType: DataType, dateRange?: DateRange
 }
 
 // Helper function to get data summary statistics - now requires date range
-export async function getDataSummary(dataType: DataType, dateRange?: DateRange | null): Promise<{
+export async function getDataSummary(
+  dataType: DataType,
+  dateRange?: DateRange | null,
+  branchCode: BranchCode = '007'
+): Promise<{
   totalRecords: number
   dateRange: { earliest: string; latest: string } | null
   totalAmount: number
 }> {
   try {
-    const data = await fetchData(dataType, dateRange)
+    const data = await fetchData(dataType, dateRange, branchCode)
     
     if (data.length === 0) {
       return {
